@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Professional POS</title>
+    <title>Dream Systems | Elite POS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -18,10 +18,15 @@
         [data-theme='auto'] { --accent: #ca8a04; --bg-img: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=2000&auto=format&fit=crop'); }
 
         body { background-color: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; }
-        .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.96)), var(--bg-img); background-size: cover; background-position: center; z-index: -2; transition: 1.5s; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 30px; }
-        input, select { background: rgba(255, 255, 255, 0.95) !important; color: #000 !important; font-weight: 900 !important; border-radius: 15px !important; padding: 12px !important; border: none !important; width: 100%; outline: none; }
-        .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 25px var(--accent); }
+        .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.92)), var(--bg-img); background-size: cover; background-position: center; z-index: -2; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(30px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 40px; }
+        
+        /* مربع الكود - وضوح تام */
+        .activation-input { background: white !important; color: black !important; font-weight: 900 !important; font-size: 2rem !important; text-align: center; border-radius: 20px !important; padding: 20px !important; border: none !important; width: 100%; }
+        
+        input, select { background: rgba(255, 255, 255, 0.9) !important; color: black !important; font-weight: 700 !important; border-radius: 12px !important; padding: 10px !important; border: none !important; }
+        .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 20px var(--accent); }
+        
         @media print { .no-print { display: none; } #print-area { display: block !important; width: 80mm; background: white; color: black; padding: 5mm; } }
     </style>
 </head>
@@ -31,91 +36,4 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
-
-        const Counter = ({ value }) => {
-            const [num, setNum] = useState(0);
-            useEffect(() => {
-                let start = 0;
-                const end = parseInt(value);
-                if (isNaN(end)) return;
-                const timer = setInterval(() => {
-                    start += Math.ceil(end / 10);
-                    if (start >= end) { setNum(end); clearInterval(timer); }
-                    else setNum(start);
-                }, 50);
-                return () => clearInterval(timer);
-            }, [value]);
-            return <span>{num.toLocaleString()}</span>;
-        };
-
-        function App() {
-            const [tenant, setTenant] = useState(() => {
-                const session = localStorage.getItem('dream_session');
-                return session ? JSON.parse(session) : null;
-            });
-            const [view, setView] = useState('pos');
-            const [items, setItems] = useState([]);
-            const [cart, setCart] = useState([]);
-            const [stats, setStats] = useState({ sales: 0, expenses: 0 });
-            const [bcSearch, setBcSearch] = useState('');
-            const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
-            const [license, setLicense] = useState('');
-
-            const searchRef = useRef(null);
-            const invBarcodeRef = useRef(null);
-
-            // تحديد الوحدات بناءً على نوع المحل
-            const isAuto = tenant?.business_type === 'auto';
-            const unitLabel = isAuto ? 'لتر' : 'كيلو';
-
-            useEffect(() => {
-                if (tenant) {
-                    document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type || 'retail');
-                    loadData(); loadStats();
-                }
-            }, [tenant]);
-
-            useEffect(() => {
-                if(view === 'pos' && searchRef.current) searchRef.current.focus();
-                if(view === 'inventory' && invBarcodeRef.current) invBarcodeRef.current.focus();
-            }, [view]);
-
-            async function loadData() {
-                const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name');
-                if (data) setItems(data);
-            }
-
-            async function loadStats() {
-                const today = new Date().toISOString().split('T')[0];
-                const { data: s } = await client.from('orders').select('total_amount').eq('tenant_id', tenant.id).gte('created_at', today);
-                const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_at', today);
-                setStats({ sales: s?.reduce((a,b)=>a+b.total_amount, 0)||0, expenses: e?.reduce((a,b)=>a+b.amount, 0)||0 });
-            }
-
-            const addToCart = (item, qty, label, isPriceInput = false) => {
-                let fQty = isPriceInput ? parseFloat(qty)/item.price : qty;
-                let fPrice = isPriceInput ? parseFloat(qty) : item.price * qty;
-                setCart(prev => [...prev, { ...item, cart_qty: fQty, price: fPrice, cart_label: label, id: Date.now(), original_id: item.id }]);
-            };
-
-            const handleInventoryBarcode = (code) => {
-                const existing = items.find(i => i.barcode === code.trim());
-                if (existing) {
-                    setNewItem({ id: existing.id, name: existing.name, price: existing.price, category: existing.category, unit: existing.unit_type, barcode: existing.barcode, cost: existing.cost_price });
-                } else {
-                    setNewItem({ ...newItem, barcode: code, id: null });
-                }
-            };
-
-            const saveProduct = async () => {
-                if(!newItem.name || !newItem.price) return alert("اكمل البيانات");
-                const payload = { name: newItem.name, price: parseFloat(newItem.price), cost_price: parseFloat(newItem.cost || 0), category: newItem.category, unit_type: newItem.unit, barcode: newItem.barcode, tenant_id: tenant.id };
-                
-                if (newItem.id) {
-                    await client.from('products').update(payload).eq('id', newItem.id);
-                    const q = prompt(`المادة موجودة، هل تريد إضافة كمية (${unitLabel}) جديدة للمخزن؟`);
-                    if(q) {
-                        const val = parseFloat(q);
-                        const isCash = confirm("سحب المبلغ من الكاش؟");
-                        const target = items.find(i => i.id === newI
+        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUz
