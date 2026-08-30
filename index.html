@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Visual Elite POS</title>
+    <title>Dream Systems | Visual Elite POS v23</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,60 +12,20 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* 🎨 هندسة الإضاءة والخلفيات */
-        :root { 
-            --accent: #6366f1; 
-            --bg-img: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80'); 
-        }
-        
-        /* مطاعم وجزارة - صورة واضحة وقوية */
-        [data-theme='food'] { 
-            --accent: #f97316; 
-            --bg-img: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1920&q=80'); 
-        }
-        
-        /* أسواق ومتاجر - صورة رفوف وبضائع واضحة */
-        [data-theme='retail'] { 
-            --accent: #10b981; 
-            --bg-img: url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80'); 
-        }
-        
-        /* زيوت وسيارات - صورة محرك فخمة */
-        [data-theme='auto'] { 
-            --accent: #eab308; 
-            --bg-img: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1920&q=80'); 
-        }
+        :root { --accent: #6366f1; --bg-img: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80'); }
+        [data-theme='food'] { --accent: #f97316; --bg-img: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1920&q=80'); }
+        [data-theme='retail'] { --accent: #10b981; --bg-img: url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920&q=80'); }
+        [data-theme='auto'] { --accent: #eab308; --bg-img: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1920&q=80'); }
 
         body { background-color: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
-        
-        /* الطبقة السينمائية المحدثة (الشفافية 0.7 بدلاً من 0.9) لظهور الصور بوضوح */
-        .dynamic-bg { 
-            position: fixed; inset: 0; 
-            background-image: linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.85)), var(--bg-img); 
-            background-size: cover; background-position: center; 
-            z-index: -2; transition: 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .glass { 
-            background: rgba(255, 255, 255, 0.03); 
-            backdrop-filter: blur(25px) saturate(150%); 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            border-radius: 35px; 
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-        }
-        
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        
+        .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.85)), var(--bg-img); background-size: cover; background-position: center; z-index: -2; transition: 1.2s; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px) saturate(150%); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 35px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
         input, select { background: rgba(255, 255, 255, 0.95) !important; color: #000 !important; font-weight: 900 !important; border-radius: 12px !important; padding: 12px !important; outline: none; width: 100%; border: none !important; }
         .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 30px var(--accent); transform: scale(1.05); }
-        .number-glow { text-shadow: 0 0 15px var(--accent); }
-
-        @media print {
-            .no-print { display: none !important; }
-            #receipt-area { display: block !important; width: 80mm; padding: 4mm; color: black !important; background: white !important; font-family: 'Arial', sans-serif; }
-            body { background: white !important; }
-        }
+        @media print { .no-print { display: none !important; } #receipt-area { display: block !important; width: 80mm; padding: 4mm; color: black !important; background: white !important; font-family: 'Arial'; } body { background: white !important; } }
         #receipt-area { display: none; }
+        .chat-bubble { max-width: 85%; padding: 12px; border-radius: 18px; font-size: 13px; font-weight: 700; line-height: 1.5; }
     </style>
 </head>
 <body id="body-tag">
@@ -82,7 +42,8 @@
             useEffect(() => {
                 const start = lastVal.current;
                 const end = parseInt(value) || 0;
-                const duration = 1000;
+                if (start === end) return;
+                const duration = 800;
                 let startTime = null;
                 const anim = (now) => {
                     if (!startTime) startTime = now;
@@ -104,19 +65,26 @@
             const [stats, setStats] = useState({ sales: 0, expenses: 0 });
             const [bcSearch, setBcSearch] = useState('');
             const [modal, setModal] = useState({ type: null, data: null });
+            const [chat, setChat] = useState([]);
+            const [msgInput, setMsgInput] = useState('');
+            const [showChat, setShowChat] = useState(false);
             const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
 
             const searchRef = useRef(null);
+            const chatEndRef = useRef(null);
             const unitLabel = tenant?.business_type === 'auto' ? 'لتر' : 'كيلو';
 
             useEffect(() => {
                 if (tenant) {
                     document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type);
-                    loadData(); loadStats();
+                    loadData(); loadStats(); loadChat();
+                    const chatInterval = setInterval(loadChat, 5000);
+                    return () => clearInterval(chatInterval);
                 }
             }, [tenant]);
 
             useEffect(() => { if(view === 'pos' && searchRef.current) searchRef.current.focus(); }, [view]);
+            useEffect(() => { if(showChat && chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [chat, showChat]);
 
             async function loadData() {
                 const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name');
@@ -130,6 +98,17 @@
                 setStats({ sales: s?.reduce((a,b)=>a+b.total_amount, 0)||0, expenses: e?.reduce((a,b)=>a+b.amount, 0)||0 });
             }
 
+            async function loadChat() {
+                const { data } = await client.from('support_messages').select('*').eq('tenant_id', tenant.id).order('created_at');
+                if(data) setChat(data);
+            }
+
+            const sendChatMsg = async () => {
+                if(!msgInput.trim()) return;
+                await client.from('support_messages').insert([{ tenant_id: tenant.id, sender: 'client', message: msgInput }]);
+                setMsgInput(''); loadChat();
+            };
+
             const addToCart = (item, qty, label, isPriceInput = false) => {
                 let fQty = isPriceInput ? parseFloat(qty)/item.price : qty;
                 let fPrice = isPriceInput ? parseFloat(qty) : item.price * qty;
@@ -141,8 +120,6 @@
                 if(!cart.length) return;
                 const total = cart.reduce((a,b)=>a+b.price, 0);
                 const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: total }]).select().single();
-                const itemsToSave = cart.map(c => ({ order_id: order.id, product_name: c.name, qty: c.cart_qty, price: c.price, item_note: c.item_note }));
-                await client.from('order_items').insert(itemsToSave);
                 for(const c of cart) {
                     const t = items.find(i=>i.id === c.original_id);
                     await client.from('products').update({stock_quantity: (t.stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
@@ -153,21 +130,20 @@
             if (!tenant) return (
                 <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950">
                     <div className="glass w-full max-w-md p-16 text-center border-white/10 no-print">
-                        <div className="w-24 h-24 bg-indigo-600 rounded-3xl mx-auto mb-10 flex items-center justify-center text-5xl font-black italic shadow-indigo-600/30 shadow-xl text-white">D</div>
+                        <div className="w-24 h-24 bg-indigo-600 rounded-3xl mx-auto mb-10 flex items-center justify-center text-5xl font-black italic shadow-xl text-white">D</div>
                         <h1 className="text-3xl font-black mb-10 text-indigo-400 uppercase tracking-widest italic">Dream Systems</h1>
                         <input className="text-center text-xl p-5 mb-6 rounded-2xl w-full !bg-white !text-black" placeholder="أدخل الكود DRM-XXXX" id="login-key" />
                         <button onClick={async ()=>{
                             const v = document.getElementById('login-key').value.toUpperCase();
                             const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
                             if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ في الكود");
-                        }} className="w-full py-5 bg-indigo-600 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-all">تنشيط المحل 🚀</button>
+                        }} className="w-full py-5 bg-indigo-600 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-all">دخول آمن 🚀</button>
                     </div>
                 </div>
             );
 
             return (
-                <div className="min-h-screen flex flex-col">
-                    {/* الفاتورة المطبوعة */}
+                <div className="min-h-screen flex flex-col relative">
                     <div id="receipt-area">
                         <div style={{textAlign: 'center', borderBottom: '1px dashed black', paddingBottom: '10px', marginBottom: '10px'}}>
                             <h2 style={{fontSize: '22px', fontWeight: '900'}}>{tenant.business_name}</h2>
@@ -175,19 +151,18 @@
                             <p style={{fontSize: '11px'}}>{new Date().toLocaleString()}</p>
                         </div>
                         <table style={{width: '100%', fontSize: '13px', borderCollapse: 'collapse'}}>
-                            <thead><tr style={{borderBottom: '1px solid black'}}><th align="right">المادة</th><th align="center">الكمية</th><th align="left">السعر</th></tr></thead>
                             <tbody>
                                 {cart.map((c, i) => (
                                     <tr key={i} style={{borderBottom: '1px solid #eee'}}><td style={{padding: '5px 0'}}><b>{c.name}</b></td><td align="center">{c.cart_qty.toFixed(2)}</td><td align="left">{c.price.toLocaleString()}</td></tr>
                                 ))}
                             </tbody>
                         </table>
-                        <div style={{marginTop: '15px', borderTop: '2px solid black', paddingTop: '10px', textAlign: 'center'}}>
+                        <div style={{marginTop: '15px', borderTop: '2px solid #000', paddingTop: '10px', textAlign: 'center'}}>
                             <h3 style={{fontSize: '20px', fontWeight: '900'}}>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()} د.ع</h3>
                         </div>
                     </div>
 
-                    {/* Modals Manager */}
+                    {/* Modals */}
                     {modal.type === 'expense' && (
                         <div className="modal-overlay no-print">
                             <div className="glass p-10 w-full max-w-sm">
@@ -198,7 +173,7 @@
                                     <button onClick={async ()=>{
                                         const a=document.getElementById('exp-amt').value, r=document.getElementById('exp-res').value;
                                         if(a&&r){ await client.from('expenses').insert([{tenant_id:tenant.id, amount:parseFloat(a), reason:r}]); setModal({type:null}); loadStats(); }
-                                    }} className="flex-1 py-4 bg-rose-600 rounded-2xl font-black text-lg shadow-lg">تأكيد السحب 💸</button>
+                                    }} className="flex-1 py-4 bg-rose-600 rounded-2xl font-black text-lg">تأكيد 💸</button>
                                     <button onClick={()=>setModal({type:null})} className="px-6 py-4 bg-white/10 rounded-2xl font-bold">إلغاء</button>
                                 </div>
                             </div>
@@ -227,12 +202,12 @@
                                         await client.from('products').update({stock_quantity: modal.data.stock_quantity + q}).eq('id', modal.data.id);
                                         await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.data.cost_price||0), reason: `تجهيز كاش: ${modal.data.name}`}]);
                                         setModal({type:null}); loadData(); loadStats();
-                                    }} className="bg-emerald-600 py-4 rounded-xl font-black text-xs shadow-lg">توريد كاش 💸</button>
+                                    }} className="bg-emerald-600 py-4 rounded-xl font-black text-xs">توريد كاش 💸</button>
                                     <button onClick={async ()=>{
                                         const q = parseFloat(document.getElementById('restock-qty').value);
                                         await client.from('products').update({stock_quantity: modal.data.stock_quantity + q}).eq('id', modal.data.id);
                                         setModal({type:null}); loadData();
-                                    }} className="bg-indigo-600 py-4 rounded-xl font-black text-xs shadow-lg">توريد آجل ⏳</button>
+                                    }} className="bg-indigo-600 py-4 rounded-xl font-black text-xs">توريد آجل ⏳</button>
                                 </div>
                                 <button onClick={()=>setModal({type:null})} className="w-full py-3 bg-white/5 rounded-xl font-bold">إلغاء</button>
                             </div>
@@ -241,13 +216,17 @@
 
                     <header className="p-6 flex justify-between items-center sticky top-0 z-50 no-print">
                         <h1 className="font-black text-2xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
-                        <div className="flex bg-slate-900/50 backdrop-blur-md p-1.5 rounded-3xl gap-1 no-print border border-white/5">
+                        <div className="flex bg-slate-900/50 backdrop-blur-md p-1.5 rounded-3xl gap-1 no-print border border-white/5 shadow-2xl">
                             {['pos', 'inventory', 'reports'].map(v => (
-                                <button key={v} onClick={()=>setView(v)} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40 hover:opacity-100'}`}>
+                                <button key={v} onClick={()=>setView(v)} className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40 hover:opacity-100'}`}>
                                     {v==='pos'?'البيع':v==='inventory'?'المخزن':'التقارير'}
                                 </button>
                             ))}
-                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-4 text-rose-500 font-black">✕</button>
+                            <button onClick={()=>setShowChat(true)} className="px-4 py-2.5 rounded-xl bg-amber-400 text-amber-950 font-black relative">
+                                الدعم
+                                {chat.some(m=>!m.is_read && m.sender==='admin') && <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>}
+                            </button>
+                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black">✕</button>
                         </div>
                     </header>
 
@@ -256,48 +235,45 @@
                             <div className="grid lg:grid-cols-[1fr_420px] gap-10">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                     {items.map(item => (
-                                        <div key={item.id} className="glass p-6 cursor-pointer group hover:scale-[1.02] transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'Unit')}>
+                                        <div key={item.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50 transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
                                             <div className="flex justify-between items-start">
-                                                <span className="text-[9px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{item.category}</span>
+                                                <span className="text-[10px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{item.category}</span>
                                                 <div className="font-black text-lg" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
                                             </div>
                                             <h3 className="font-bold text-xl mt-3">{item.name}</h3>
                                             {item.unit_type === 'kg' && (
                                                 <div className="grid grid-cols-4 gap-1 mt-4">
                                                     {[1, 0.5, 0.25].map(w => (
-                                                        <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' '+unitLabel)}} className="bg-white/5 hover:bg-white/20 py-2 rounded-lg text-[10px] font-bold border border-white/5">{w}</button>
+                                                        <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' '+unitLabel)}} className="bg-white/5 hover:bg-white/20 py-2 rounded-lg text-[10px] font-bold">{w}</button>
                                                     ))}
-                                                    <button onClick={(e)=>{e.stopPropagation(); setModal({type:'custom_amount', data:item})}} className="bg-indigo-600/30 py-2 rounded-lg text-[10px] font-black">💰</button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); setModal({type:'custom_amount', data:item})}} className="bg-indigo-600 p-2 rounded-lg text-[10px] font-black">💰</button>
                                                 </div>
                                             )}
                                         </div>
                                     ))}
                                 </div>
-                                <div className="glass h-[78vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/40 shadow-2xl">
-                                    <div className="p-4 bg-white/5 font-black text-center text-xs opacity-40 uppercase">Invoice</div>
+                                <div className="glass h-[78vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/40 border-white/5 shadow-2xl">
+                                    <div className="p-4 font-black text-center text-xs tracking-widest opacity-40 uppercase italic">Checkout</div>
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                         {cart.map((c, i) => (
-                                            <div key={i} className="flex flex-col border-b border-white/5 pb-3">
+                                            <div key={i} className="flex flex-col border-b border-white/5 pb-4">
                                                 <div className="flex justify-between items-center font-black">
-                                                    <div><p className="font-black text-sm">{c.name}</p><small className="opacity-30 uppercase font-bold text-[9px]">{c.cart_label}</small></div>
-                                                    <div className="flex items-center gap-3"><span className="font-black">{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button></div>
+                                                    <div><p className="text-sm">{c.name}</p><small className="opacity-30 uppercase text-[9px]">{c.cart_label}</small></div>
+                                                    <div className="flex items-center gap-3"><span>{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button></div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                     <div className="p-8 bg-black/30 border-t border-white/5">
-                                        <div className="flex justify-between font-black text-2xl mb-6">
-                                            <span className="opacity-30 text-xs">Total</span>
-                                            <span className="number-glow text-3xl" style={{color: 'var(--accent)'}}><AnimatedCounter value={cart.reduce((a,b)=>a+b.price, 0)} /></span>
-                                        </div>
-                                        <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-all">تأكيد وطباعة ✅</button>
+                                        <div className="flex justify-between font-black text-3xl mb-6"><span className="opacity-30 text-xs uppercase">Total</span><span style={{color: 'var(--accent)'}}><AnimatedCounter value={cart.reduce((a,b)=>a+b.price, 0)} /></span></div>
+                                        <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl active:scale-95 shadow-lg">تأكيد وطباعة ✅</button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {view === 'inventory' && (
-                            <div className="glass p-10 animate-in fade-in duration-500">
+                            <div className="glass p-10 animate-in fade-in zoom-in duration-500">
                                 <h2 className="text-3xl font-black mb-10 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المخزن</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-[2rem] border border-white/10 shadow-2xl">
                                     <input placeholder="باركود" value={newItem.barcode} onChange={e => {
@@ -307,8 +283,8 @@
                                         else setNewItem({...newItem, barcode: code, id:null});
                                     }} className="!bg-slate-800 !text-white" />
                                     <input placeholder="الاسم" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
-                                    <input type="number" placeholder="البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
-                                    <input type="number" placeholder="التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
+                                    <input type="number" placeholder="سعر البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <input type="number" placeholder="سعر التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
                                     <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">قطعة</option><option value="kg">بالـ {unitLabel}</option></select>
                                     <button onClick={async ()=>{
                                         const payload = {name:newItem.name, price:parseFloat(newItem.price), cost_price:parseFloat(newItem.cost||0), unit_type:newItem.unit, barcode:newItem.barcode, tenant_id:tenant.id};
@@ -321,13 +297,10 @@
                                     {items.map(i => (
                                         <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5">
                                             <div className="flex justify-between items-start">
-                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-30 mt-1 uppercase">BC: {i.barcode || 'N/A'}</p></div>
-                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unitLabel:'ق'}</span>
+                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-40">BC: {i.barcode || 'N/A'}</p></div>
+                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unitLabel:'ق'}</span>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={()=>setModal({type:'restock', data:i})} className="flex-1 py-3 bg-white/5 text-indigo-400 border border-indigo-500/20 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد (+)</button>
-                                                <button onClick={async()=>{ if(confirm('حذف؟')) {await client.from('products').delete().eq('id',i.id); loadData();} }} className="px-4 py-3 bg-rose-500/5 text-rose-500 rounded-xl font-black">✕</button>
-                                            </div>
+                                            <div className="flex gap-2"><button onClick={()=>setModal({type:'restock', data:i})} className="flex-1 py-3 bg-white/5 text-indigo-400 border border-indigo-500/20 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد (+)</button><button onClick={async()=>{ if(confirm('حذف؟')) {await client.from('products').delete().eq('id',i.id); loadData();} }} className="px-4 py-3 bg-rose-500/5 text-rose-500 rounded-xl">✕</button></div>
                                         </div>
                                     ))}
                                 </div>
@@ -337,26 +310,34 @@
                         {view === 'reports' && (
                             <div className="space-y-10 animate-in slide-in-from-bottom-10 duration-700">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                                    <div className="glass p-14 border-indigo-500/10">
-                                        <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">مبيعات اليوم</p>
-                                        <h2 className="text-6xl font-black number-glow" style={{color: 'var(--accent)'}}><AnimatedCounter value={stats.sales} /></h2>
-                                    </div>
-                                    <div className="glass p-14 border-rose-500/10">
-                                        <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">المسحوبات</p>
-                                        <h2 className="text-6xl font-black text-rose-500"><AnimatedCounter value={stats.expenses} /></h2>
-                                    </div>
-                                    <div className="glass p-14 border-emerald-500/10">
-                                        <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">الصافي الفعلي</p>
-                                        <h2 className="text-6xl font-black text-emerald-500"><AnimatedCounter value={stats.sales - stats.expenses} /></h2>
-                                    </div>
+                                    <div className="glass p-14 border-indigo-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">مبيعات اليوم</p><h2 className="text-6xl font-black number-glow" style={{color: 'var(--accent)'}}><AnimatedCounter value={stats.sales} /></h2></div>
+                                    <div className="glass p-14 border-rose-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><AnimatedCounter value={stats.expenses} /></h2></div>
+                                    <div className="glass p-14 border-emerald-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">الصافي الفعلي</p><h2 className="text-6xl font-black text-emerald-500"><AnimatedCounter value={stats.sales - stats.expenses} /></h2></div>
                                 </div>
-                                <div className="flex justify-center">
-                                    <button onClick={()=>setModal({type:'expense'})} className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black text-xl shadow-2xl shadow-rose-600/30 hover:bg-rose-500 active:scale-95 transition-all">تسجيل سحب يدوي 💸</button>
-                                </div>
+                                <div className="flex justify-center"><button onClick={()=>setModal({type:'expense'})} className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black text-xl shadow-2xl hover:bg-rose-500 active:scale-95 transition-all">تسجيل سحب يدوي 💸</button></div>
                             </div>
                         )}
                     </main>
-                    <footer className="p-10 text-center opacity-10 text-[9px] font-black uppercase tracking-[1em] no-print">Dream Systems Premium v22</footer>
+
+                    {/* نظام الدردشة - Chat System */}
+                    {showChat && (
+                        <div className="fixed bottom-10 left-10 z-[100] glass w-full max-w-sm h-[500px] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in border-white/20">
+                            <div className="p-5 bg-indigo-600 text-white font-black flex justify-between shadow-lg uppercase italic text-xs tracking-widest"><span>Dream Systems Support</span><button onClick={()=>setShowChat(false)} className="text-xl">✕</button></div>
+                            <div className="flex-1 p-5 overflow-y-auto bg-slate-900/50 space-y-4 flex flex-col">
+                                {chat.map(m=>(
+                                    <div key={m.id} className={`chat-bubble ${m.sender==='client'?'bg-indigo-600/30 text-indigo-100 self-start rounded-bl-none border border-indigo-500/20':'bg-white/10 text-white self-end rounded-br-none'}`}>
+                                        {m.message}
+                                        <div className="text-[8px] opacity-30 mt-1">{new Date(m.created_at).toLocaleTimeString()}</div>
+                                    </div>
+                                ))}
+                                <div ref={chatEndRef} />
+                            </div>
+                            <div className="p-4 bg-slate-950 border-t border-white/5 flex gap-3">
+                                <input className="flex-1 !p-3 !text-sm !bg-slate-900 !text-white" value={msgInput} onChange={e=>setMsgInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&sendChatMsg()} placeholder="اكتب هنا..." />
+                                <button onClick={sendChatMsg} className="bg-indigo-600 px-6 rounded-xl font-black text-sm">إرسال</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
