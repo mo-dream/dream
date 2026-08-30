@@ -10,50 +10,26 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
         :root { --gold: #b68c58; --accent: #6366f1; }
         [data-theme='food'] { --accent: #f97316; --bg: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1920'); }
         [data-theme='retail'] { --accent: #10b981; --bg: url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920'); }
         [data-theme='auto'] { --accent: #eab308; --bg: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1920'); }
-
         body { background: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow: hidden; }
-
-        /* 🌌 خلفية الهوية البصرية (قبل الدخول) */
-        .brand-bg {
-            position: fixed; inset: 0; z-index: -2;
-            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .brand-watermark {
-            position: absolute; width: 80%; opacity: 0.08; filter: blur(3px); pointer-events: none;
-        }
-
-        /* 🖼️ خلفية المحلات (بعد الدخول) */
-        .shop-bg {
-            position: fixed; inset: 0; z-index: -1;
-            background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), var(--bg);
-            background-size: cover; background-position: center;
-            opacity: 0; transition: 1.5s ease;
-        }
+        .brand-bg { position: fixed; inset: 0; z-index: -2; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); display: flex; align-items: center; justify-content: center; }
+        .brand-logo { width: 80%; opacity: 0.08; filter: blur(3px); }
+        .shop-bg { position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), var(--bg); background-size: cover; background-position: center; opacity: 0; transition: 1.5s ease; }
         [data-logged="true"] .shop-bg { opacity: 1; }
         [data-logged="true"] .brand-bg { display: none; }
-
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 40px; }
         input { background: #fff !important; color: #000 !important; font-weight: 900 !important; border-radius: 12px !important; padding: 15px !important; border: none !important; width: 100%; outline: none; }
-        .btn-gold { background: linear-gradient(135deg, #b68c58, #8a6d44); color: white; font-weight: 900; box-shadow: 0 10px 30px rgba(182, 140, 88, 0.3); }
+        .btn-gold { background: linear-gradient(135deg, #b68c58, #8a6d44); color: white; font-weight: 900; }
         .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 30px var(--accent); }
     </style>
 </head>
 <body>
-    <!-- الهوية البصرية لخلفية الدخول -->
-    <div class="brand-bg no-print">
-        <img src="logo.png" class="brand-watermark" />
-    </div>
-
-    <!-- خلفية المحلات -->
+    <div class="brand-bg no-print"><img src="logo.png" class="brand-logo" /></div>
     <div class="shop-bg no-print"></div>
-
     <div id="root"></div>
 
     <script type="text/babel">
@@ -94,19 +70,14 @@
 
             if (!tenant) return (
                 <div className="min-h-screen flex items-center justify-center p-6">
-                    <div className="glass w-full max-w-lg p-14 text-center shadow-2xl relative z-10 border-white/10">
-                        {/* شعار السستم الرئيسي */}
+                    <div className="glass w-full max-w-lg p-14 text-center shadow-2xl relative border-white/10">
                         <img src="logo.png" className="w-64 mx-auto mb-12 drop-shadow-[0_0_30px_rgba(182,140,88,0.4)]" />
-                        
-                        <div className="space-y-6">
-                            <input id="lic" className="text-center text-2xl !p-6 rounded-2xl" placeholder="أدخل كود التفعيل" />
-                            <button onClick={async ()=>{
-                                const v = document.getElementById('lic').value.toUpperCase();
-                                const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
-                                if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("الكود غير صحيح");
-                            }} className="w-full py-5 btn-gold text-2xl rounded-2xl active:scale-95 transition-all">تفعيل المنصة السحابية 🚀</button>
-                        </div>
-                        <p className="mt-12 text-[10px] font-black opacity-20 uppercase tracking-[0.5em]">Dream Systems Global Terminal</p>
+                        <input id="lic" className="text-center text-2xl !p-6" placeholder="أدخل كود التفعيل" />
+                        <button onClick={async ()=>{
+                            const v = document.getElementById('lic').value.toUpperCase();
+                            const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("خطأ");
+                        }} className="w-full py-5 btn-gold text-2xl rounded-2xl mt-6">دخول آمن 🚀</button>
                     </div>
                 </div>
             );
@@ -114,10 +85,7 @@
             return (
                 <div className="min-h-screen flex flex-col p-4 md:p-8 animate-in fade-in duration-700">
                     <header className="flex justify-between items-center mb-8 no-print">
-                        <div className="flex flex-col">
-                            <h1 className="text-2xl font-black italic text-indigo-400 uppercase tracking-tighter">{tenant.business_name}</h1>
-                            <span className="text-[10px] opacity-30 font-bold uppercase tracking-widest">Premium Cloud Active</span>
-                        </div>
+                        <h1 className="text-2xl font-black italic text-indigo-400 uppercase tracking-tighter">{tenant.business_name}</h1>
                         <div className="flex bg-slate-900/60 backdrop-blur-md p-1.5 rounded-2xl gap-1 border border-white/5">
                             {['pos', 'inventory', 'reports'].map(v => (
                                 <button key={v} onClick={()=>setView(v)} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40'}`}>
@@ -127,21 +95,4 @@
                             <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black">✕</button>
                         </div>
                     </header>
-                    <main className="flex-1 no-print">
-                        {/* واجهة التقارير مع العدادات */}
-                        {view === 'reports' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center animate-in zoom-in duration-500">
-                                <div className="glass p-14 border-indigo-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">مبيعات اليوم</p><h2 className="text-6xl font-black text-indigo-400"><Counter val={stats.s} /></h2></div>
-                                <div className="glass p-14 border-rose-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><Counter val={stats.e} /></h2></div>
-                                <div className="glass p-14 border-emerald-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">الصافي</p><h2 className="text-6xl font-black text-emerald-500"><Counter val={stats.s - stats.e} /></h2></div>
-                            </div>
-                        )}
-                        {/* باقي الواجهات pos و inventory تعمل بنفس الأسلوب المستقر */}
-                    </main>
-                </div>
-            );
-        }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
-</body>
-</html>
+                    <main class
