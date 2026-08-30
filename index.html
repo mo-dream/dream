@@ -108,4 +108,209 @@
             async function loadStats() {
                 const today = new Date().toISOString().split('T')[0];
                 const { data: s } = await client.from('orders').select('total_amount').eq('tenant_id', tenant.id).gte('created_at', today);
-                const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_
+                const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_at', today);
+                setStats({ s: s?.reduce((a,b)=>a+b.total_amount, 0)||0, e: e?.reduce((a,b)=>a+b.amount, 0)||0 });
+            }
+            async function loadChat() { const { data } = await client.from('support_messages').select('*').eq('tenant_id', tenant.id).order('created_at'); if(data) setChat(data); }
+
+            const addToCart = (i, q, l, isP = false) => {
+                let fQ = isP ? parseFloat(q)/i.price : q, fP = isP ? parseFloat(q) : i.price * q;
+                setCart([...cart, { ...i, cart_qty: fQ, price: fP, cart_label: l, id: Date.now(), original_id: i.id, item_note:'' }]);
+                setModal({t:null});
+            };
+
+            const checkout = async () => {
+                if(!cart.length) return;
+                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: cart.reduce((a,b)=>a+b.price, 0) }]).select().single();
+                for(const c of cart) await client.from('products').update({stock_quantity: (items.find(x=>x.id===c.original_id).stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
+                window.print(); window.location.reload();
+            };
+
+            if (!tenant) return (
+                <div className="min-h-screen flex items-center justify-center p-6">
+                    <div className="glass w-full max-w-lg p-14 text-center shadow-2xl relative border-white/10">
+                        <img src="logo.png" className="w-64 mx-auto mb-10 drop-shadow-2xl" />
+                        <input id="lic" className="text-center text-2xl !p-5 mb-6" placeholder="كود التفعيل DRM-XXXX" />
+                        <button onClick={async ()=>{
+                            const v = document.getElementById('lic').value.toUpperCase();
+                            const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ في الكود");
+                        }} className="w-full py-5 btn-gold text-2xl rounded-2xl shadow-xl">دخول آمن للمنصة 🚀</button>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col p-4 md:p-8 animate-in fade-in duration-500">
+                    {/* الفاتورة */}
+                    <div id="receipt">
+                        <div className="text-center border-b pb-2 mb-4 font-bold"><h2>{tenant.business_name}</h2><p>{new Date().toLocaleString()}</p></div>
+                        <table className="w-full text-sm"><tbody>{cart.map((c, i) => (<tr key={i}><td align="right">{c.name}</td><td align="left">{c.price.toLocaleString()}</td></tr>))}</tbody></table>
+                        <div className="text-center mt-4 border-t pt-2"><h3>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</h3></div>
+                    </div>
+
+                    {/* النوافذ المدمجة (Modals) */}
+                    {modal.t === 'manual_expense' && (
+                        <div className="modal-bg no-print">
+                            <div className="glass p-10 w-full max-w-sm animate-in zoom-in">
+                                <h3 className="text-2xl font-black mb-6 text-rose-500">سحب من الصندوق</h3>
+                                <input id="ma" type="number" placeholder="المبلغ..." className="!text-center !text-3xl mb-4" />
+                                <input id="mr" placeholder="السبب..." className="!text-center mb-6" />
+                                <div className="flex gap-2">
+                                    <button onClick={async ()=>{
+                                        const a=parseFloat(document.getElementById('ma').value), r=document.getElementById('mr').value;
+                                        if(!a||!r) return;
+                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount:a, reason:r}]);
+                                        setModal({t:null}); loadStats();
+                                    }} className="flex-1 py-4 bg-rose-600 rounded-2xl font-black">تأكيد السحب</button>
+                                    <button onClick={()=>setModal({t:null})} className="px-6 py-4 bg-white/10 rounded-2xl">إلغاء</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {modal.t === 'restock' && (
+                        <div className="modal-bg no-print">
+                            <div className="glass p-10 w-full max-w-md animate-in zoom-in">
+                                <h3 className="text-2xl font-black mb-6">توريد: {modal.d.name}</h3>
+                                <input id="rq" type="number" placeholder={`الكمية (${unit})`} className="!text-center !text-3xl mb-8" />
+                                <div className="grid grid-cols-2 gap-2 mb-8">
+                                    <button onClick={async ()=>{
+                                        const q = parseFloat(document.getElementById('rq').value);
+                                        await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
+                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.d.cost_price||0), reason: `توريد كاش: ${modal.d.name}`}]);
+                                        setModal({t:null}); loadData(); loadStats();
+                                    }} className="bg-emerald-600 py-4 rounded-xl font-bold">واصل كاش 💸</button>
+                                    <button onClick={async ()=>{
+                                        const q = parseFloat(document.getElementById('rq').value);
+                                        await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
+                                        setModal({t:null}); loadData();
+                                    }} className="bg-indigo-600 py-4 rounded-xl font-bold">آجل ديون ⏳</button>
+                                </div>
+                                <button onClick={()=>setModal({t:null})} className="w-full opacity-50 font-bold">إلغاء</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* الهيدر */}
+                    <header className="flex justify-between items-center mb-8 no-print">
+                        <h1 className="text-2xl font-black italic text-indigo-400 uppercase tracking-tighter">{tenant.business_name}</h1>
+                        <div className="flex bg-slate-900/60 backdrop-blur-md p-1.5 rounded-2xl gap-1 border border-white/5">
+                            {['pos', 'inventory', 'reports', 'settings'].map(v => (
+                                <button key={v} onClick={()=>setView(v)} className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40'}`}>
+                                    {v==='pos'?'البيع':v==='inventory'?'المخزن':v==='reports'?'التقارير':'الإعدادات'}
+                                </button>
+                            ))}
+                            <button onClick={()=>setShowChat(true)} className="px-4 py-2.5 rounded-xl bg-amber-400 text-amber-950 font-black relative">الدعم {chat.some(m=>!m.is_read&&m.sender==='admin')&&<span class="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>}</button>
+                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black">✕</button>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 no-print">
+                        {view === 'pos' && (
+                            <div className="grid lg:grid-cols-[1fr_420px] gap-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    {items.map(i => (
+                                        <div key={i.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50" onClick={() => i.unit_type !== 'kg' && addToCart(i, 1, 'قطعة')}>
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-[9px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{i.category}</span>
+                                                <div className="font-black text-lg text-indigo-400">{i.price.toLocaleString()}</div>
+                                            </div>
+                                            <h3 className="font-bold text-xl mt-3">{i.name}</h3>
+                                            {i.unit_type === 'kg' && (
+                                                <div className="grid grid-cols-3 gap-1 mt-4">
+                                                    <button onClick={(e)=>{e.stopPropagation(); addToCart(i, 1, '1'+unit)}} className="bg-white/5 p-2 rounded-lg text-[10px] font-bold">1 {unit}</button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); addToCart(i, 0.5, '0.5'+unit)}} className="bg-white/5 p-2 rounded-lg text-[10px] font-bold">0.5</button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); const p=prompt('Amount:'); if(p) addToCart(i, parseFloat(p)/i.price, p+' IQD', true)}} className="bg-indigo-600 p-2 rounded-lg text-[10px] font-black">💰</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="glass h-[78vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/40">
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                        {cart.map((c, idx) => (
+                                            <div key={idx} className="flex justify-between border-b border-white/5 pb-4">
+                                                <div><p className="font-bold text-sm">{c.name}</p><small className="opacity-30 uppercase text-[9px]">{c.cart_label}</small></div>
+                                                <div className="flex items-center gap-3"><span>{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,k)=>k!==idx))} className="text-rose-500 font-bold">✕</button></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="p-8 bg-black/30 border-t border-white/5">
+                                        <div className="flex justify-between font-black text-2xl mb-6"><span>Total</span><span style={{color: 'var(--accent)'}}><DynamicNum value={cart.reduce((a,b)=>a+b.price, 0)} /></span></div>
+                                        <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-lg">تأكيد البيع ✅</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'reports' && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center animate-in slide-in-from-bottom-10 duration-700">
+                                <div className="glass p-14 border-indigo-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">مبيعات اليوم</p><h2 className="text-6xl font-black text-indigo-400"><DynamicNum value={stats.s} /></h2></div>
+                                <div className="glass p-14 border-rose-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><DynamicNum value={stats.e} /></h2></div>
+                                <div className="glass p-14 border-emerald-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">الصافي الفعلي</p><h2 className="text-6xl font-black text-emerald-500"><DynamicNum value={stats.s - stats.e} /></h2></div>
+                                <div className="col-span-full flex justify-center"><button onClick={()=>setModal({t:'manual_expense'})} className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black text-xl shadow-2xl">تسجيل سحب يدوي 💸</button></div>
+                            </div>
+                        )}
+                        
+                        {view === 'inventory' && (
+                            <div className="glass p-10 animate-in fade-in">
+                                <h2 className="text-3xl font-black mb-10 italic uppercase text-indigo-400">إدارة المواد</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-3xl border border-white/10 shadow-2xl">
+                                    <input placeholder="باركود" value={newItem.b} onChange={e => {
+                                        const c = e.target.value.trim(); const x = items.find(i=>i.barcode === c);
+                                        if(x) setNewItem({id:x.id, n:x.name, p:x.price, cost:x.cost_price, u:x.unit_type, b:c});
+                                        else setNewItem({...newItem, b:c, id:null});
+                                    }} className="!bg-slate-800 !text-white" />
+                                    <input placeholder="الاسم" value={newItem.n} onChange={e=>setNewItem({...newItem, n:e.target.value})} />
+                                    <input type="number" placeholder="البيع" value={newItem.p} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <input type="number" placeholder="التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
+                                    <select value={newItem.u} onChange={e=>setNewItem({...newItem, u:e.target.value})}><option value="piece">قطعة</option><option value="kg">بالـ {unit}</option></select>
+                                    <button onClick={async ()=>{
+                                        const p = {name:newItem.n, price:parseFloat(newItem.p), cost_price:parseFloat(newItem.cost||0), unit_type:newItem.u, barcode:newItem.b, tenant_id:tenant.id};
+                                        if(newItem.id) await client.from('products').update(p).eq('id', newItem.id); else await client.from('products').insert([p]);
+                                        setNewItem({id:null,n:'',p:'',cost:'',u:'piece',b:''}); loadData();
+                                    }} className="lg:col-span-5 py-4 bg-indigo-600 rounded-2xl font-black">حفظ المادة ✨</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {items.map(i => (
+                                        <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5">
+                                            <div className="flex justify-between items-start">
+                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-30 mt-1 uppercase">BC: {i.barcode || 'N/A'}</p></div>
+                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unit:'ق'}</span>
+                                            </div>
+                                            <button onClick={()=>setModal({t:'restock', d:i})} className="w-full py-3 bg-white/5 text-indigo-400 border border-indigo-500/20 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد (+)</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {view === 'settings' && (
+                            <div className="max-w-2xl mx-auto glass p-12 space-y-8 animate-in slide-in-from-bottom-10">
+                                <h2 className="text-3xl font-black border-b border-white/5 pb-4 italic text-[#b68c58]">⚙️ إعدادات الحساب</h2>
+                                <div><label className="text-xs font-bold opacity-30 block mb-2 mr-2 uppercase">اسم المنشأة</label><input value={tenant.business_name} onChange={async(e)=>{const v=e.target.value; setTenant({...tenant, business_name:v}); await client.from('tenants').update({business_name:v}).eq('id',tenant.id); localStorage.setItem('dream_session',JSON.stringify({...tenant, business_name:v}));}} /></div>
+                                <div><label className="text-xs font-bold opacity-30 block mb-2 mr-2 uppercase">رقم الهاتف</label><input value={tenant.phone_number||''} placeholder="07XXXXXXXXX" onChange={async(e)=>{const v=e.target.value; setTenant({...tenant, phone_number:v}); await client.from('tenants').update({phone_number:v}).eq('id',tenant.id); localStorage.setItem('dream_session',JSON.stringify({...tenant, phone_number:v}));}} /></div>
+                            </div>
+                        )}
+                    </main>
+
+                    {showChat && (
+                        <div className="fixed bottom-10 left-10 z-[100] glass w-full max-w-sm h-[500px] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in border-white/20">
+                            <div className="p-4 bg-indigo-600 text-white font-black flex justify-between uppercase italic text-xs tracking-widest"><span>Dream Support</span><button onClick={()=>setShowChat(false)} className="text-xl">✕</button></div>
+                            <div className="flex-1 p-4 overflow-y-auto bg-slate-900/50 space-y-3">
+                                {chat.map(m=><div key={m.id} className={`p-3 rounded-2xl text-xs font-bold shadow-sm ${m.sender==='client'?'bg-white/10 text-white mr-auto rounded-bl-none':'bg-indigo-600 text-white ml-auto rounded-br-none'}`}>{m.message}</div>)}
+                            </div>
+                            <div className="p-4 border-t border-white/5 bg-slate-950 flex gap-2">
+                                <input className="flex-1 !p-2 !text-sm !bg-slate-900 !text-white" value={msg} onChange={e=>setMsg(e.target.value)} placeholder="اكتب هنا..." onKeyPress={e=>e.key==='Enter'&&(async()=>{if(!msg)return; await client.from('support_messages').insert([{tenant_id:tenant.id, sender:'client', message:msg}]); setMsg(''); loadChat();})()} />
+                                <button onClick={async ()=>{if(!msg)return; await client.from('support_messages').insert([{tenant_id:tenant.id, sender:'client', message:msg}]); setMsg(''); loadChat();}} className="bg-indigo-600 px-5 rounded-xl font-black">ارسل</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
