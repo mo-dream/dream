@@ -36,4 +36,224 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUz
+        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
+
+        function App() {
+            const [tenant, setTenant] = useState(() => {
+                const session = localStorage.getItem('dream_session');
+                return session ? JSON.parse(session) : null;
+            });
+            const [view, setView] = useState('pos');
+            const [items, setItems] = useState([]);
+            const [cart, setCart] = useState([]);
+            const [stats, setStats] = useState({ sales: 0, expenses: 0 });
+            const [license, setLicense] = useState('');
+            const [bcSearch, setBcSearch] = useState('');
+            const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
+            
+            const searchRef = useRef(null);
+
+            useEffect(() => {
+                if (tenant) {
+                    document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type || 'retail');
+                    loadData(); loadStats();
+                }
+            }, [tenant]);
+
+            useEffect(() => {
+                if(view === 'pos' && searchRef.current) searchRef.current.focus();
+            }, [view]);
+
+            async function loadData() {
+                const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name');
+                if (data) setItems(data);
+            }
+
+            async function loadStats() {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: s } = await client.from('orders').select('total_amount').eq('tenant_id', tenant.id).gte('created_at', today);
+                const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_at', today);
+                setStats({ sales: s?.reduce((a,b)=>a+b.total_amount, 0)||0, expenses: e?.reduce((a,b)=>a+b.amount, 0)||0 });
+            }
+
+            const unitLabel = tenant?.business_type === 'auto' ? 'لتر' : 'كيلو';
+
+            const handleBarcodeScan = (e) => {
+                const code = e.target.value;
+                setBcSearch(code);
+                const product = items.find(i => i.barcode === code.trim());
+                if (product) {
+                    addToCart(product, 1, 'سكنر');
+                    setBcSearch('');
+                }
+            };
+
+            const addToCart = (item, qty, label, isPrice = false) => {
+                let fQty = isPrice ? parseFloat(qty)/item.price : qty;
+                let fPrice = isPrice ? parseFloat(qty) : item.price * qty;
+                setCart(prev => [...prev, { ...item, cart_qty: fQty, price: fPrice, cart_label: label, id: Date.now(), original_id: item.id }]);
+            };
+
+            const checkout = async () => {
+                if(!cart.length) return;
+                const total = cart.reduce((a,b)=>a+b.price, 0);
+                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: total }]).select().single();
+                for(const c of cart) {
+                    const t = items.find(i=>i.id === c.original_id);
+                    await client.from('products').update({stock_quantity: (t.stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
+                }
+                window.print(); window.location.reload();
+            };
+
+            if (!tenant) return (
+                <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950">
+                    <div className="glass w-full max-w-md p-12 text-center shadow-2xl">
+                        <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto mb-8 flex items-center justify-center text-4xl font-black italic">D</div>
+                        <h1 className="text-3xl font-black mb-8 tracking-widest text-indigo-400">DREAM SYSTEMS</h1>
+                        <input className="activation-input mb-6" placeholder="DRM-XXXX" onChange={e => setLicense(e.target.value.toUpperCase())} />
+                        <button onClick={async ()=>{
+                            const {data} = await client.from('tenants').select('*').eq('license_key', license).maybeSingle();
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("خطأ في الكود");
+                        }} className="w-full py-5 bg-indigo-600 rounded-xl font-black text-xl shadow-lg">دخول آمن 🚀</button>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* طباعة */}
+                    <div id="print-area" className="hidden">
+                        <div className="text-center mb-4 font-bold"><h2>{tenant.business_name}</h2><p>{new Date().toLocaleString()}</p></div>
+                        <table className="w-full text-sm">
+                            {cart.map((c, i) => (<tr key={i} className="border-b"><td align="right">{c.name}</td><td align="left">{c.price.toLocaleString()}</td></tr>))}
+                        </table>
+                        <div className="text-center mt-4 border-t pt-2"><h3>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</h3></div>
+                    </div>
+
+                    <header className="p-4 flex justify-between items-center sticky top-0 z-50 no-print">
+                        <h1 className="font-black text-xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
+                        <div className="flex bg-white/5 backdrop-blur-md p-1 rounded-2xl gap-1 no-print">
+                            <button onClick={()=>setView('pos')} className={`px-4 py-2 rounded-xl font-black text-xs ${view==='pos'?'tab-active':'opacity-40'}`}>البيع</button>
+                            <button onClick={()=>setView('inventory')} className={`px-4 py-2 rounded-xl font-black text-xs ${view==='inventory'?'tab-active':'opacity-40'}`}>المخزن</button>
+                            <button onClick={()=>setView('reports')} className={`px-4 py-2 rounded-xl font-black text-xs ${view==='reports'?'tab-active':'opacity-40'}`}>التقارير</button>
+                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-4 text-rose-500 font-black">✕</button>
+                        </div>
+                    </header>
+
+                    <main className="p-4 lg:p-8 max-w-[1600px] mx-auto w-full no-print">
+                        {view === 'pos' && (
+                            <div className="space-y-6">
+                                <div className="flex justify-center mb-4">
+                                    <input ref={searchRef} value={bcSearch} onChange={handleBarcodeScan} className="!w-full max-w-md !bg-white !text-black text-center" placeholder="امسح الباركود للبيع الفوري..." />
+                                </div>
+                                <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-fit">
+                                        {items.map(item => (
+                                            <div key={item.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50 transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
+                                                <div className="flex justify-between items-start">
+                                                    <span className="text-[10px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{item.category}</span>
+                                                    <div className="font-black text-lg" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
+                                                </div>
+                                                <h3 className="font-bold text-xl mt-3">{item.name}</h3>
+                                                {item.unit_type === 'kg' && (
+                                                    <div className="grid grid-cols-4 gap-1 mt-4">
+                                                        {[1, 0.5, 0.25].map(w => (
+                                                            <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' '+unitLabel)}} className="bg-white/5 hover:bg-white/20 py-2 rounded-lg text-[10px] font-bold">{w}</button>
+                                                        ))}
+                                                        <button onClick={(e)=>{e.stopPropagation(); const p=prompt('المبلغ:'); if(p) addToCart(item, p, p+' د.ع', true)}} className="bg-indigo-600 p-2 rounded-lg text-[10px] font-black">💰</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="glass h-[75vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/50">
+                                        <div className="p-4 font-black text-center text-xs opacity-40 uppercase">Invoice</div>
+                                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                            {cart.map((c, i) => (
+                                                <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2">
+                                                    <div><p className="font-bold text-sm">{c.name}</p><small className="opacity-40">{c.cart_label}</small></div>
+                                                    <div className="flex items-center gap-3"><span className="font-black">{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="p-6 bg-black/20 border-t border-white/5">
+                                            <div className="flex justify-between font-black text-2xl mb-4"><span>المجموع</span><span style={{color: 'var(--accent)'}}>{cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</span></div>
+                                            <button onClick={checkout} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg">تأكيد وطباعة ✅</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'inventory' && (
+                            <div className="glass p-8 animate-in fade-in duration-500">
+                                <h2 className="text-2xl font-black mb-8 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المواد</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12 bg-white/5 p-6 rounded-2xl">
+                                    <input placeholder="باركود (سكنر)" value={newItem.barcode} onChange={e => {
+                                        const code = e.target.value;
+                                        const exist = items.find(i => i.barcode === code.trim());
+                                        if(exist) setNewItem({id:exist.id, name:exist.name, price:exist.price, category:exist.category, unit:exist.unit_type, barcode:exist.barcode, cost:exist.cost_price});
+                                        else setNewItem({...newItem, barcode: code, id:null});
+                                    }} className="!bg-slate-800 !text-white" />
+                                    <input placeholder="اسم المادة" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
+                                    <input type="number" placeholder="سعر البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <input type="number" placeholder="سعر التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
+                                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">قطعة</option><option value="kg">بالـ {unitLabel}</option></select>
+                                    <button onClick={async ()=>{
+                                        if(!newItem.name || !newItem.price) return alert("اكمل البيانات");
+                                        const payload = {name:newItem.name, price:parseFloat(newItem.price), cost_price:parseFloat(newItem.cost||0), unit_type:newItem.unit, barcode:newItem.barcode, tenant_id:tenant.id};
+                                        if(newItem.id) await client.from('products').update(payload).eq('id', newItem.id);
+                                        else await client.from('products').insert([payload]);
+                                        setNewItem({id:null, name:'', price:'', category:'عام', unit:'piece', barcode:'', cost:''});
+                                        loadData(); alert("تم الحفظ");
+                                    }} className="bg-indigo-600 rounded-xl font-black">{newItem.id?'تحديث':'حفظ'}</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {items.map(i => (
+                                        <div key={i.id} className="glass p-5 flex flex-col gap-4">
+                                            <div className="flex justify-between items-center">
+                                                <div><b className="text-lg">{i.name}</b><p className="text-xs opacity-40">BC: {i.barcode || 'N/A'}</p></div>
+                                                <span className="text-xs font-black px-2 py-1 rounded bg-emerald-500/10 text-emerald-500">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unitLabel:'ق'}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input type="number" placeholder="كمية" className="!p-1 !text-xs !bg-white/5 !text-white !w-20" id={`inv-${i.id}`} />
+                                                <button onClick={async ()=>{
+                                                    const val = parseFloat(document.getElementById(`inv-${i.id}`).value);
+                                                    if(!val) return;
+                                                    const isCash = confirm("سحب المبلغ من الكاش؟");
+                                                    await client.from('products').update({stock_quantity: i.stock_quantity + val}).eq('id', i.id);
+                                                    if(isCash) await client.from('expenses').insert([{tenant_id:tenant.id, amount: val * (i.cost_price || 0), reason: `تجهيز: ${i.name}`}]);
+                                                    document.getElementById(`inv-${i.id}`).value = ''; loadData(); loadStats();
+                                                }} className="bg-indigo-600/20 text-indigo-400 px-4 py-1 rounded-lg text-xs font-black flex-1">إضافة (+)</button>
+                                                <button onClick={async()=> {if(confirm('حذف؟')){await client.from('products').delete().eq('id',i.id); loadData();}}} className="text-rose-500 px-3 font-black">✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'reports' && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                                <div className="glass p-12">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4">مبيعات اليوم</p>
+                                    <h2 className="text-6xl font-black" style={{color: 'var(--accent)'}}>{stats.sales.toLocaleString()}</h2>
+                                </div>
+                                <div className="glass p-12">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4">المسحوبات</p>
+                                    <h2 className="text-6xl font-black text-rose-500">{stats.expenses.toLocaleString()}</h2>
+                                </div>
+                                <div className="glass p-12">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4">الصافي</p>
+                                    <h2 className="text-6xl font-black text-emerald-500">{(stats.sales - stats.expenses).toLocaleString()}</h2>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
