@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Visual Pro POS</title>
+    <title>Dream Systems | Ultimate Visual POS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -16,66 +16,47 @@
             --accent: #6366f1; 
             --bg-img: url('https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=2069&auto=format&fit=crop'); 
         }
-        
-        /* جزارة ومشويات */
         [data-theme='food'] { 
             --accent: #f97316; 
-            --bg-img: url('https://images.unsplash.com/photo-1588123530873-3150ce109927?q=80&w=2000&auto=format&fit=crop');
+            --bg-img: url('https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?q=80&w=2000&auto=format&fit=crop'); /* صورة جزارة حديثة */
         }
-        /* أسواق ومتاجر */
         [data-theme='retail'] { 
             --accent: #10b981; 
-            --bg-img: url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop');
+            --bg-img: url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop'); /* صورة ماركت */
         }
-        /* زيوت وسيارات */
         [data-theme='auto'] { 
             --accent: #eab308; 
-            --bg-img: url('https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=2000&auto=format&fit=crop');
+            --bg-img: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=2000&auto=format&fit=crop'); /* صورة محرك وزيوت */
         }
 
-        body { 
-            background-color: #020617; color: #fff; font-family: 'Cairo', sans-serif;
-            margin: 0; min-height: 100vh; overflow-x: hidden;
-        }
-
-        /* صورة الخلفية مع الطبقة السينمائية */
+        body { background-color: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        
         .dynamic-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: linear-gradient(rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.9)), var(--bg-img);
-            background-size: cover; background-position: center;
-            z-index: -2; transition: background-image 0.8s ease-in-out;
+            background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.9)), var(--bg-img);
+            background-size: cover; background-position: center; z-index: -2; transition: 0.8s ease-in-out;
         }
 
-        /* كرت التصميم الزجاجي 3D */
-        .visual-card {
+        .glass-panel {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(25px) saturate(180%);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 35px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        /* تحسين مربع الكود - لصق واضح وكتابة سوداء */
-        .login-input {
+        input, select {
             background: rgba(255, 255, 255, 0.95) !important;
             color: #000 !important; font-weight: 900 !important;
-            font-size: 1.5rem !important; text-align: center;
-            border-radius: 24px !important; padding: 20px !important;
-            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            border-radius: 18px !important; padding: 14px !important;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
 
-        .active-tab {
-            background: var(--accent) !important;
-            color: white !important;
-            box-shadow: 0 0 20px var(--accent);
-        }
+        .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 20px var(--accent); }
+        .btn-glow { background: var(--accent); box-shadow: 0 0 15px var(--accent); transition: 0.3s; }
+        .btn-glow:hover { transform: scale(1.02); box-shadow: 0 0 30px var(--accent); }
 
-        .neon-border { border-color: var(--accent); }
-        .text-accent { color: var(--accent); }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+        @media print { .no-print { display: none; } #print-area { display: block !important; width: 80mm; background: white; color: black; padding: 5mm; } }
     </style>
 </head>
 <body id="body-tag">
@@ -91,12 +72,17 @@
             const [view, setView] = useState('pos');
             const [items, setItems] = useState([]);
             const [cart, setCart] = useState([]);
+            const [stats, setStats] = useState({ sales: 0, expenses: 0, orders: [] });
+            const [chat, setChat] = useState([]);
+            const [showChat, setShowChat] = useState(false);
+            const [msg, setMsg] = useState('');
             const [license, setLicense] = useState('');
+            const [newItem, setNewItem] = useState({ name: '', price: '', category: 'عام', unit: 'piece', cost: '' });
 
             useEffect(() => {
                 if (tenant) {
                     document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type || 'food');
-                    loadData();
+                    loadData(); loadStats(); loadChat();
                 }
             }, [tenant]);
 
@@ -105,23 +91,50 @@
                 if (data) setItems(data);
             }
 
+            async function loadStats() {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: s } = await client.from('orders').select('*, order_items(*)').eq('tenant_id', tenant.id).gte('created_at', today).order('created_at', {ascending: false});
+                const { data: e } = await client.from('expenses').select('*').eq('tenant_id', tenant.id).gte('created_at', today);
+                setStats({ sales: s?.reduce((a,b)=>a+b.total_amount, 0)||0, expenses: e?.reduce((a,b)=>a+b.amount, 0)||0, orders: s || [] });
+            }
+
+            async function loadChat() {
+                const { data } = await client.from('support_messages').select('*').eq('tenant_id', tenant.id).order('created_at');
+                if(data) setChat(data);
+            }
+
             const addToCart = (item, qty, label, isPrice = false) => {
                 let fQty = isPrice ? parseFloat(qty)/item.price : qty;
                 let fPrice = isPrice ? parseFloat(qty) : item.price * qty;
                 setCart([...cart, { ...item, cart_qty: fQty, price: fPrice, cart_label: label, id: Date.now(), original_id: item.id }]);
             };
 
+            const checkout = async () => {
+                if(!cart.length) return;
+                const total = cart.reduce((a,b)=>a+b.price, 0);
+                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: total }]).select().single();
+                const orderItems = cart.map(c => ({ order_id: order.id, product_name: c.name, qty: c.cart_qty, price: c.price }));
+                await client.from('order_items').insert(orderItems);
+                for(const c of cart) {
+                    const t = items.find(i=>i.id === c.original_id);
+                    await client.from('products').update({stock_quantity: (t.stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
+                }
+                window.print(); window.location.reload();
+            };
+
+            const logout = () => { localStorage.clear(); window.location.reload(); };
+
             if (!tenant) return (
                 <div className="min-h-screen flex items-center justify-center p-6">
-                    <div className="visual-card w-full max-w-md p-14 text-center">
+                    <div className="glass-panel w-full max-w-md p-14 text-center">
                         <div className="w-24 h-24 bg-white/5 rounded-[2rem] mx-auto mb-10 flex items-center justify-center text-5xl font-black italic shadow-inner border border-white/10">D</div>
                         <h1 className="text-4xl font-black mb-12 tracking-widest italic">DREAM SYSTEMS</h1>
                         <div className="space-y-6">
-                            <input className="login-input" placeholder="DRM-XXXX" value={license} onChange={e=>setLicense(e.target.value.toUpperCase())} />
+                            <input className="text-center text-2xl" placeholder="DRM-XXXX" onChange={e=>setLicense(e.target.value.toUpperCase())} />
                             <button onClick={async ()=>{
                                 const {data} = await client.from('tenants').select('*').eq('license_key', license).maybeSingle();
-                                if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("خطأ في الكود");
-                            }} className="w-full py-6 bg-white/10 hover:bg-white/20 rounded-[2rem] font-black text-xl tracking-widest border border-white/20 transition-all">تنشيط السحاب 🚀</button>
+                                if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("كود التفعيل خطأ");
+                            }} className="w-full py-6 btn-glow rounded-[2rem] font-black text-xl">تنشيط السحاب 🚀</button>
                         </div>
                     </div>
                 </div>
@@ -129,71 +142,155 @@
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <header className="p-8 flex justify-between items-center sticky top-0 z-50 no-print">
-                        <div className="flex flex-col">
-                            <h1 className="font-black text-2xl italic tracking-tighter uppercase text-accent">{tenant.business_name}</h1>
-                            <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.4em] mt-1">Premium Visual Node</p>
-                        </div>
-                        <div className="flex bg-white/5 backdrop-blur-3xl p-2 rounded-3xl border border-white/10 gap-2">
-                            {['pos', 'inventory', 'reports'].map(v => (
-                                <button key={v} onClick={()=>setView(v)} className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${view===v?'active-tab':'opacity-30 hover:opacity-100'}`}>
-                                    {v==='pos'?'Sale':v==='inventory'?'Stock':'Stats'}
+                    {/* طباعة */}
+                    <div id="print-area" className="hidden">
+                        <div className="text-center mb-4"><h2 className="text-xl font-bold">{tenant.business_name}</h2><p>هاتف: {tenant.phone_number}</p></div>
+                        <table className="w-full text-sm">
+                            {cart.map((c, i) => (<tr key={i}><td align="right">{c.name}</td><td align="left">{c.price.toLocaleString()}</td></tr>))}
+                        </table>
+                        <div className="text-center mt-4 border-t pt-2"><h3>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</h3></div>
+                    </div>
+
+                    <header className="p-6 flex justify-between items-center sticky top-0 z-50 no-print">
+                        <h1 className="font-black text-2xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
+                        <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-3xl gap-1">
+                            {['pos', 'inventory', 'reports', 'settings'].map(v => (
+                                <button key={v} onClick={()=>setView(v)} className={`px-6 py-3 rounded-2xl font-black text-[11px] uppercase transition-all ${view===v?'tab-active':'opacity-40 hover:opacity-100'}`}>
+                                    {v==='pos'?'البيع':v==='inventory'?'المنيو والمخزن':v==='reports'?'التقارير':'الإعدادات'}
                                 </button>
                             ))}
-                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-5 text-rose-500 font-black">✕</button>
+                            <button onClick={()=>setShowChat(true)} className="px-4 py-3 rounded-2xl bg-amber-500/20 text-amber-400 text-[11px] font-black">الدعم</button>
+                            <button onClick={logout} className="px-4 text-rose-500 font-black">✕</button>
                         </div>
                     </header>
 
-                    <main className="p-8 lg:p-12 max-w-[1600px] mx-auto w-full no-print">
+                    <main className="p-4 lg:p-8 max-w-[1600px] mx-auto w-full no-print">
+                        {/* 1. البيع */}
                         {view === 'pos' && (
-                            <div className="grid lg:grid-cols-[1fr_450px] gap-12">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <div className="grid lg:grid-cols-[1fr_420px] gap-10">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {items.map(item => (
-                                        <div key={item.id} className="visual-card p-8 cursor-pointer group hover:scale-[1.03] transition-all duration-500" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'Unit')}>
-                                            <div className="flex justify-between items-start mb-8">
-                                                <span className="text-[9px] font-black px-4 py-2 rounded-full bg-white/5 border border-white/10 uppercase opacity-60">{item.category}</span>
-                                                <div className="font-black text-xl text-accent">{item.price.toLocaleString()}</div>
+                                        <div key={item.id} className="glass-panel p-8 cursor-pointer group hover:scale-[1.03] transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
+                                            <div className="flex justify-between items-start mb-6">
+                                                <span className="text-[10px] font-black px-3 py-1 rounded-full bg-white/10 tracking-widest uppercase">{item.category}</span>
+                                                <div className="font-black text-xl" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
                                             </div>
-                                            <h3 className="font-bold text-2xl mb-8">{item.name}</h3>
+                                            <h3 className="font-bold text-2xl mb-6">{item.name}</h3>
                                             {item.unit_type === 'kg' && (
                                                 <div className="grid grid-cols-4 gap-2">
                                                     {[1, 0.5, 0.25].map(w => (
-                                                        <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' KG')}} className="bg-white/5 hover:bg-white/20 py-3 rounded-2xl text-[11px] font-black">{w}K</button>
+                                                        <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' كغم')}} className="bg-white/5 hover:bg-white/20 py-3 rounded-xl text-[11px] font-black">{w}ك</button>
                                                     ))}
-                                                    <button onClick={(e)=>{e.stopPropagation(); const p=prompt('Amount:'); if(p) addToCart(item, p, p+' IQD', true)}} className="bg-white/10 py-3 rounded-2xl text-[11px] font-black">💰</button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); const p=prompt('ادخل المبلغ:'); if(p) addToCart(item, p, p+' د.ع', true)}} className="btn-glow py-3 rounded-xl text-[11px] font-black">💰</button>
                                                 </div>
                                             )}
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="visual-card h-[82vh] flex flex-col sticky top-32 overflow-hidden">
-                                    <div className="p-8 bg-white/[0.02] border-b border-white/10 flex justify-between items-center text-[10px] font-black tracking-widest uppercase opacity-40">
-                                        <span>Checkout Bag</span>
-                                        <div className="w-2 h-2 rounded-full bg-accent animate-ping"></div>
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                                <div className="glass-panel h-[82vh] flex flex-col sticky top-28 overflow-hidden">
+                                    <div className="p-6 bg-white/[0.02] border-b border-white/10 font-black text-center text-xs tracking-widest opacity-40 uppercase">Checkout Bag</div>
+                                    <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                         {cart.map((c, i) => (
-                                            <div key={i} className="flex justify-between items-center animate-in slide-in-from-bottom duration-500">
-                                                <div><p className="font-bold text-lg">{c.name}</p><p className="text-[9px] font-black opacity-30 uppercase mt-1">{c.cart_label}</p></div>
-                                                <div className="flex items-center gap-8">
-                                                    <span className="font-black text-2xl text-accent">{c.price.toLocaleString()}</span>
-                                                    <button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500 opacity-30 hover:opacity-100">✕</button>
+                                            <div key={i} className="flex justify-between items-center border-b border-white/5 pb-4">
+                                                <div><p className="font-bold text-lg">{c.name}</p><small className="font-bold uppercase opacity-30 text-[10px]">{c.cart_label}</small></div>
+                                                <div className="flex items-center gap-5">
+                                                    <span className="font-black text-xl">{c.price.toLocaleString()}</span>
+                                                    <button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                    <div className="p-12 bg-white/[0.02] border-t border-white/10">
-                                        <div className="flex justify-between items-end mb-12">
-                                            <span className="text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">Total</span>
-                                            <span className="text-6xl font-black tracking-tighter text-accent">{cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</span>
+                                    <div className="p-10 bg-white/[0.02] border-t border-white/10">
+                                        <div className="flex justify-between items-end mb-10">
+                                            <span className="text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">Total Amount</span>
+                                            <span className="text-6xl font-black tracking-tighter" style={{color: 'var(--accent)'}}>{cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</span>
                                         </div>
-                                        <button onClick={()=>{window.print(); window.location.reload();}} className="w-full py-8 bg-white/5 hover:bg-white/10 rounded-[3rem] font-black text-2xl uppercase tracking-widest border border-white/10">Complete Sale</button>
+                                        <button onClick={checkout} className="w-full py-8 btn-glow rounded-[3rem] font-black text-2xl uppercase">Confirm Sale ✅</button>
                                     </div>
                                 </div>
                             </div>
                         )}
+
+                        {/* 2. المنيو والمخزن */}
+                        {view === 'inventory' && (
+                            <div className="glass-panel p-10 animate-in fade-in zoom-in duration-500">
+                                <h2 className="text-3xl font-black mb-12 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المواد والمخزن</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-16">
+                                    <input placeholder="اسم المادة" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
+                                    <input placeholder="القسم" value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} />
+                                    <input type="number" placeholder="سعر البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">بالقطعة</option><option value="kg">بالكيلو</option></select>
+                                    <button onClick={async ()=>{
+                                        if(!newItem.name || !newItem.price) return alert("املاً البيانات");
+                                        await client.from('products').insert([{...newItem, price:parseFloat(newItem.price), unit_type:newItem.unit, tenant_id:tenant.id}]);
+                                        loadData(); setNewItem({name:'', price:'', category:'عام', unit:'piece'});
+                                    }} className="btn-glow py-4 rounded-2xl font-black">حفظ في المنيو ✨</button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {items.map(i => (
+                                        <div key={i.id} className="glass-panel p-6 flex justify-between items-center">
+                                            <div><b className="text-xl">{i.name}</b><p className="text-xs opacity-40">المخزون: {i.stock_quantity.toFixed(2)}</p></div>
+                                            <div className="flex gap-2">
+                                                <button onClick={async()=>{const q=prompt("الكمية المجهزة:"); if(q){await client.from('products').update({stock_quantity: i.stock_quantity+parseFloat(q)}).eq('id',i.id); loadData();}}} className="bg-white/5 px-4 py-2 rounded-xl text-xs font-black">تجهيز (+)</button>
+                                                <button onClick={async()=> {if(confirm('حذف؟')){await client.from('products').delete().eq('id',i.id); loadData();}}} className="text-rose-500 font-black">✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. التقارير */}
+                        {view === 'reports' && (
+                            <div className="space-y-10 animate-in fade-in duration-500">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <div className="glass-panel p-12 text-center" style={{borderColor: 'var(--accent)'}}>
+                                        <p className="text-xs font-black opacity-30 uppercase mb-4">مبيعات اليوم</p>
+                                        <h2 className="text-6xl font-black tracking-tighter">{stats.sales.toLocaleString()}</h2>
+                                    </div>
+                                    <div className="glass-panel p-12 text-center border-rose-500/20">
+                                        <p className="text-xs font-black opacity-30 uppercase mb-4">المسحوبات</p>
+                                        <h2 className="text-6xl font-black tracking-tighter text-rose-500">{stats.expenses.toLocaleString()}</h2>
+                                    </div>
+                                    <div className="glass-panel p-12 text-center">
+                                        <p className="text-xs font-black opacity-30 uppercase mb-4">الصافي</p>
+                                        <h2 className="text-6xl font-black tracking-tighter text-emerald-500">{(stats.sales-stats.expenses).toLocaleString()}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. الإعدادات */}
+                        {view === 'settings' && (
+                            <div className="glass-panel p-14 max-w-2xl mx-auto animate-in slide-in-from-bottom duration-500">
+                                <h2 className="text-3xl font-black mb-10 border-b border-white/5 pb-6 italic">⚙️ إعدادات الحساب</h2>
+                                <div className="space-y-8">
+                                    <div><label className="text-sm font-black opacity-40 block mb-3">اسم المحل</label><input value={tenant.business_name} onChange={async (e)=>{const v=e.target.value; setTenant({...tenant, business_name:v}); await client.from('tenants').update({business_name:v}).eq('id',tenant.id); localStorage.setItem('dream_session', JSON.stringify({...tenant, business_name:v}));}} /></div>
+                                    <div><label className="text-sm font-black opacity-40 block mb-3">رقم الهاتف للفاتورة</label><input value={tenant.phone_number || ''} placeholder="07XXXXXXXXX" onChange={async (e)=>{const v=e.target.value; setTenant({...tenant, phone_number:v}); await client.from('tenants').update({phone_number:v}).eq('id',tenant.id); localStorage.setItem('dream_session', JSON.stringify({...tenant, phone_number:v}));}} /></div>
+                                </div>
+                            </div>
+                        )}
                     </main>
+
+                    {/* الدردشة */}
+                    {showChat && (
+                        <div className="fixed bottom-10 left-10 z-[100] glass-panel w-full max-w-sm h-[520px] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in border-white/20">
+                            <div className="p-5 bg-indigo-600 text-white font-black flex justify-between shadow-lg uppercase italic text-xs tracking-widest"><span>Dream Support</span><button onClick={()=>setShowChat(false)} className="text-xl">✕</button></div>
+                            <div className="flex-1 p-5 overflow-y-auto space-y-4">
+                                {chat.map(m=><div key={m.id} className={`p-3 rounded-2xl text-xs font-bold leading-relaxed ${m.sender==='client'?'bg-white/10 text-white mr-auto rounded-bl-none border border-white/10':'bg-indigo-600 text-white ml-auto rounded-br-none'}`}>{m.message}</div>)}
+                            </div>
+                            <div className="p-4 bg-black/40 border-t border-white/5 flex gap-3">
+                                <input className="flex-1 !p-3 !text-sm" id="msgI" placeholder="اكتب هنا..." />
+                                <button onClick={async ()=>{
+                                    const v = document.getElementById('msgI').value;
+                                    if(!v) return;
+                                    await client.from('support_messages').insert([{tenant_id:tenant.id, sender:'client', message:v}]);
+                                    document.getElementById('msgI').value = ''; loadChat();
+                                }} className="bg-indigo-600 px-6 rounded-xl font-black">إرسال</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
