@@ -10,22 +10,18 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
-        :root { --dream-gold: #b68c58; --accent: #6366f1; }
+        :root { --gold: #b68c58; --accent: #6366f1; }
         [data-theme='food'] { --accent: #f97316; --bg: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1920'); }
         [data-theme='retail'] { --accent: #10b981; --bg: url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=1920'); }
-        [data-theme='auto'] { --accent: #eab308; --bg: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=1920'); }
-
+        [data-theme='auto'] { --accent: #ca8a04; --bg: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=1920'); }
         body { background: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
         .brushed-metal { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); position: fixed; inset: 0; z-index: -2; }
         .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.9)), var(--bg); background-size: cover; background-position: center; z-index: -1; transition: 1s; display: none; }
         [data-logged="true"] .dynamic-bg { display: block; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 30px; }
-        input, select { background: #fff !important; color: #000 !important; font-weight: 900 !important; border-radius: 10px !important; padding: 12px !important; border: none !important; width: 100%; outline: none; }
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 30px; }
+        input, select { background: #fff !important; color: #000 !important; font-weight: 900 !important; border-radius: 12px !important; padding: 12px !important; outline: none; border: none !important; }
         .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 20px var(--accent); }
-        @media print { .no-print { display: none !important; } #receipt { display: block !important; width: 80mm; color: #000; background: #fff; padding: 4mm; font-family: Arial; } }
-        #receipt { display: none; }
     </style>
 </head>
 <body>
@@ -35,205 +31,4 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
-
-        const CountUp = ({ val }) => {
-            const [d, setD] = useState(0);
-            useEffect(() => {
-                let s = 0, e = parseInt(val) || 0, t = setInterval(() => {
-                    s += Math.ceil((e - s) / 5); if (s >= e) { setD(e); clearInterval(t); } else setD(s);
-                }, 40); return () => clearInterval(t);
-            }, [val]);
-            return <span>{d.toLocaleString()}</span>;
-        };
-
-        function App() {
-            const [tenant, setTenant] = useState(() => JSON.parse(localStorage.getItem('dream_session')));
-            const [view, setView] = useState('pos');
-            const [items, setItems] = useState([]);
-            const [cart, setCart] = useState([]);
-            const [stats, setStats] = useState({ s: 0, e: 0 });
-            const [chat, setChat] = useState([]);
-            const [modal, setModal] = useState({ t: null, d: null });
-            const [newItem, setNewItem] = useState({ id:null, n:'', p:'', c:'', u:'piece', b:'', cost:'' });
-            
-            const searchRef = useRef();
-            const unit = tenant?.business_type === 'auto' ? 'لتر' : 'كيلو';
-
-            useEffect(() => {
-                if (tenant) {
-                    document.body.dataset.theme = tenant.business_type;
-                    document.body.dataset.logged = "true";
-                    loadData(); loadStats(); loadChat();
-                    setInterval(loadChat, 5000);
-                }
-            }, [tenant]);
-
-            async function loadData() { const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name'); if(data) setItems(data); }
-            async function loadStats() {
-                const today = new Date().toISOString().split('T')[0];
-                const { data: s } = await client.from('orders').select('total_amount').eq('tenant_id', tenant.id).gte('created_at', today);
-                const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_at', today);
-                setStats({ s: s?.reduce((a,b)=>a+b.total_amount, 0)||0, e: e?.reduce((a,b)=>a+b.amount, 0)||0 });
-            }
-            async function loadChat() { const { data } = await client.from('support_messages').select('*').eq('tenant_id', tenant.id).order('created_at'); if(data) setChat(data); }
-
-            const addToCart = (i, q, l, isP = false) => {
-                let fQ = isP ? parseFloat(q)/i.price : q, fP = isP ? parseFloat(q) : i.price * q;
-                setCart([...cart, { ...i, cart_qty: fQ, price: fP, cart_label: l, id: Date.now(), original_id: i.id }]);
-                setModal({t:null});
-            };
-
-            const checkout = async () => {
-                if(!cart.length) return;
-                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: cart.reduce((a,b)=>a+b.price, 0) }]).select().single();
-                for(const c of cart) await client.from('products').update({stock_quantity: (items.find(x=>x.id===c.original_id).stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
-                window.print(); window.location.reload();
-            };
-
-            if (!tenant) return (
-                <div className="min-h-screen flex items-center justify-center p-6">
-                    <div className="glass w-full max-w-lg p-12 text-center shadow-2xl">
-                        <img src="https://i.ibb.co/L6V23Zz/dream-logo.png" className="w-64 mx-auto mb-8 drop-shadow-2xl" />
-                        <input id="lic" className="text-center text-2xl !p-5 mb-4" placeholder="كود التفعيل DRM-XXXX" />
-                        <button onClick={async ()=>{
-                            const v = document.getElementById('lic').value.toUpperCase();
-                            const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
-                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("خطأ");
-                        }} className="w-full py-5 bg-[#b68c58] text-white rounded-2xl font-black text-xl shadow-xl">دخول آمن 🚀</button>
-                    </div>
-                </div>
-            );
-
-            return (
-                <div className="min-h-screen flex flex-col">
-                    <div id="receipt">
-                        <div className="text-center border-b pb-2 mb-4"><h2>{tenant.business_name}</h2><p>{new Date().toLocaleString()}</p></div>
-                        <table className="w-full text-sm">
-                            {cart.map((c, i) => (<tr key={i}><td align="right">{c.name}</td><td align="left">{c.price.toLocaleString()}</td></tr>))}
-                        </table>
-                        <div className="text-center mt-4 border-t pt-2"><h3>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</h3></div>
-                    </div>
-
-                    {modal.t === 'restock' && (
-                        <div className="modal-overlay no-print fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4">
-                            <div className="glass p-10 w-full max-w-md animate-in zoom-in">
-                                <h3 className="text-2xl font-black mb-6">تجهيز: {modal.d.name}</h3>
-                                <input id="rq" type="number" placeholder={`الكمية (${unit})`} className="!text-center !text-3xl mb-6" />
-                                <div className="grid grid-cols-2 gap-2 mb-6">
-                                    <button onClick={async ()=>{
-                                        const q = parseFloat(document.getElementById('rq').value);
-                                        await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
-                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.d.cost_price||0), reason: `كاش: ${modal.d.name}`}]);
-                                        setModal({t:null}); loadData(); loadStats();
-                                    }} className="bg-emerald-600 py-4 rounded-xl font-bold">واصل كاش 💸</button>
-                                    <button onClick={async ()=>{
-                                        const q = parseFloat(document.getElementById('rq').value);
-                                        await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
-                                        setModal({t:null}); loadData();
-                                    }} className="bg-indigo-600 py-4 rounded-xl font-bold">آجل ديون ⏳</button>
-                                </div>
-                                <button onClick={()=>setModal({t:null})} className="w-full opacity-50 font-bold">إلغاء</button>
-                            </div>
-                        </div>
-                    )}
-
-                    <header className="p-6 flex justify-between items-center sticky top-0 z-50 no-print">
-                        <h1 className="font-black text-2xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
-                        <div className="flex bg-slate-900/50 backdrop-blur-md p-1.5 rounded-3xl gap-1 border border-white/5 shadow-2xl">
-                            {['pos', 'inventory', 'reports'].map(v => (
-                                <button key={v} onClick={()=>setView(v)} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40'}`}>
-                                    {v==='pos'?'البيع':v==='inventory'?'المخزن':'التقارير'}
-                                </button>
-                            ))}
-                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black">✕</button>
-                        </div>
-                    </header>
-
-                    <main className="p-4 lg:p-8 max-w-[1600px] mx-auto w-full no-print">
-                        {view === 'pos' && (
-                            <div className="grid lg:grid-cols-[1fr_420px] gap-10">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                                    {items.map(item => (
-                                        <div key={item.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50 transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'Unit')}>
-                                            <div className="flex justify-between items-start">
-                                                <span className="text-[9px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{item.category}</span>
-                                                <div className="font-black text-lg" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
-                                            </div>
-                                            <h3 className="font-bold text-xl mt-3">{item.name}</h3>
-                                            {item.unit_type === 'kg' && (
-                                                <div className="grid grid-cols-3 gap-2 mt-4">
-                                                    <button onClick={(e)=>{e.stopPropagation(); addToCart(item, 1, '1'+unit)}} className="bg-white/5 p-2 rounded-lg text-[10px] font-bold">1 {unit}</button>
-                                                    <button onClick={(e)=>{e.stopPropagation(); addToCart(item, 0.5, '0.5'+unit)}} className="bg-white/5 p-2 rounded-lg text-[10px] font-bold">0.5</button>
-                                                    <button onClick={(e)=>{e.stopPropagation(); const p=prompt('المبلغ:'); if(p) addToCart(item, p, p+' د.ع', true)}} className="bg-indigo-600 p-2 rounded-lg text-[10px] font-black">💰</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="glass h-[78vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/40">
-                                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                        {cart.map((c, i) => (
-                                            <div key={i} className="flex justify-between border-b border-white/5 pb-4">
-                                                <div><p className="font-bold text-sm">{c.name}</p><small className="opacity-30 uppercase text-[9px]">{c.cart_label}</small></div>
-                                                <div className="flex items-center gap-3"><span>{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="p-8 bg-black/30 border-t border-white/5">
-                                        <div className="flex justify-between font-black text-3xl mb-6"><span>TOTAL</span><span style={{color: 'var(--accent)'}}><CountUp val={cart.reduce((a,b)=>a+b.price, 0)} /></span></div>
-                                        <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-lg">تأكيد البيع ✅</button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'inventory' && (
-                            <div className="glass p-10 animate-in fade-in">
-                                <h2 className="text-3xl font-black mb-10 italic uppercase" style={{color: 'var(--accent)'}}>المخزن والمنيو</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-3xl border border-white/10">
-                                    <input placeholder="باركود" value={newItem.b} onChange={e => {
-                                        const c = e.target.value.trim(); const x = items.find(i=>i.barcode === c);
-                                        if(x) setNewItem({id:x.id, n:x.name, p:x.price, cost:x.cost_price, u:x.unit_type, b:c});
-                                        else setNewItem({...newItem, b:c, id:null});
-                                    }} />
-                                    <input placeholder="الاسم" value={newItem.n} onChange={e=>setNewItem({...newItem, n:e.target.value})} />
-                                    <input type="number" placeholder="البيع" value={newItem.p} onChange={e=>setNewItem({...newItem, p:e.target.value})} />
-                                    <input type="number" placeholder="التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
-                                    <select value={newItem.u} onChange={e=>setNewItem({...newItem, u:e.target.value})}><option value="piece">بالقطعة</option><option value="kg">بالـ {unit}</option></select>
-                                    <button onClick={async ()=>{
-                                        const p = {name:newItem.n, price:parseFloat(newItem.p), cost_price:parseFloat(newItem.cost||0), unit_type:newItem.u, barcode:newItem.b, tenant_id:tenant.id};
-                                        if(newItem.id) await client.from('products').update(p).eq('id', newItem.id); else await client.from('products').insert([p]);
-                                        setNewItem({id:null,n:'',p:'',c:'',u:'piece',b:'',cost:''}); loadData();
-                                    }} className="lg:col-span-5 py-4 bg-indigo-600 rounded-2xl font-black">{newItem.id?'تحديث':'حفظ'}</button>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {items.map(i => (
-                                        <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5">
-                                            <div className="flex justify-between">
-                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-30 mt-1 uppercase">BC: {i.barcode || 'N/A'}</p></div>
-                                                <span className="text-xs font-black px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-400">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unit:'ق'}</span>
-                                            </div>
-                                            <button onClick={()=>setModal({t:'restock', d:i})} className="w-full py-3 bg-white/5 text-indigo-400 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد (+)</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {view === 'reports' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center animate-in slide-in-from-bottom-10">
-                                <div className="glass p-14 border-indigo-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">مبيعات اليوم</p><h2 className="text-6xl font-black" style={{color: 'var(--accent)'}}><CountUp val={stats.s} /></h2></div>
-                                <div className="glass p-14 border-rose-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><CountUp val={stats.e} /></h2></div>
-                                <div className="glass p-14 border-emerald-500/10"><p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">الصافي</p><h2 className="text-6xl font-black text-emerald-500"><CountUp val={stats.s - stats.e} /></h2></div>
-                            </div>
-                        )}
-                    </main>
-                    <footer className="p-10 text-center opacity-10 text-[9px] font-black uppercase tracking-[1em] no-print">Dream Systems Elite v24</footer>
-                </div>
-            );
-        }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
-</body>
-</html>
+        const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQ
