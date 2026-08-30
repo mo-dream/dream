@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Premium POS</title>
+    <title>Dream Systems | Platform</title>
     
+    <!-- استدعاء المكتبات بترتيب سليم -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    
-    <!-- تحميل المكتبات المضمونة -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -17,78 +16,75 @@
     <style>
         :root { --gold: #b68c58; --accent: #6366f1; }
         
-        /* ثيمات الأنشطة */
+        /* الثيمات */
         [data-theme='food'] { --accent: #f97316; --bg: url('https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1920'); }
         [data-theme='retail'] { --accent: #10b981; --bg: url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=1920'); }
         [data-theme='auto'] { --accent: #eab308; --bg: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=1920'); }
 
         body { background: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        
+        /* خلفية الهوية البصرية */
+        .brand-bg { position: fixed; inset: 0; z-index: -2; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); display: flex; align-items: center; justify-content: center; }
+        .brand-logo-bg { width: 70%; opacity: 0.05; filter: blur(2px); pointer-events: none; }
 
-        /* 🌌 الهوية البصرية (خلفية دريم الأساسية) */
-        .dream-overlay {
-            position: fixed; inset: 0; z-index: -2;
-            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .dream-watermark { width: 70%; opacity: 0.05; filter: blur(2px); pointer-events: none; }
-
-        /* 🖼️ خلفية المحل (تظهر بعد الدخول) */
-        .shop-overlay {
-            position: fixed; inset: 0; z-index: -1;
-            background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), var(--bg);
-            background-size: cover; background-position: center;
-            opacity: 0; transition: 1s ease;
-        }
-        [data-logged="true"] .shop-overlay { opacity: 1; }
+        /* خلفية المتجر */
+        .shop-bg { position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), var(--bg); background-size: cover; background-position: center; opacity: 0; transition: 1s ease; }
+        [data-logged="true"] .shop-bg { opacity: 1; }
+        [data-logged="true"] .brand-bg { display: none; }
 
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 35px; }
-        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; }
         
         input, select { background: #fff !important; color: #000 !important; font-weight: 900 !important; border-radius: 12px !important; padding: 12px !important; border: none !important; width: 100%; outline: none; }
         .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 30px var(--accent); }
         .btn-gold { background: linear-gradient(135deg, #b68c58, #8a6d44); color: white; font-weight: 900; }
 
-        @media print { .no-print { display: none !important; } #receipt { display: block !important; width: 80mm; color: black; background: white; padding: 5mm; } }
+        @media print { .no-print { display: none !important; } #receipt { display: block !important; width: 80mm; color: black; background: white; padding: 5mm; font-family: Arial; } }
         #receipt { display: none; }
     </style>
 </head>
 <body>
-    <!-- الهوية البصرية الثابتة -->
-    <div class="dream-overlay no-print"><img src="logo.png" class="dream-watermark" /></div>
-    <!-- خلفية المحلات المتغيرة -->
-    <div class="shop-overlay no-print"></div>
-
+    <div class="brand-bg no-print"><img src="logo.png" class="brand-logo-bg" /></div>
+    <div class="shop-bg no-print"></div>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
 
-        // مكون العداد التفاعلي (تم تبسيطه لضمان الاستقرار)
-        const DynamicNum = ({ value }) => {
-            const [n, setN] = useState(0);
+        // العداد التفاعلي المضمون
+        const SafeCounter = ({ value }) => {
+            const [display, setDisplay] = useState(0);
+            const prevValue = useRef(0);
+
             useEffect(() => {
-                let start = 0; const end = parseInt(value) || 0;
-                if(end === 0) { setN(0); return; }
+                let start = prevValue.current;
+                let end = parseInt(value) || 0;
+                if (start === end) return;
                 let t = setInterval(() => {
                     start += Math.ceil((end - start) / 5);
-                    if(start >= end) { setN(end); clearInterval(t); } else setN(start);
-                }, 40); return () => clearInterval(t);
+                    if (start >= end) { setDisplay(end); clearInterval(t); }
+                    else setDisplay(start);
+                }, 40);
+                prevValue.current = end;
+                return () => clearInterval(t);
             }, [value]);
-            return <span>{n.toLocaleString()}</span>;
+            return <span>{display.toLocaleString()}</span>;
         };
 
         function App() {
-            const [tenant, setTenant] = useState(() => JSON.parse(localStorage.getItem('dream_session')));
+            const [tenant, setTenant] = useState(() => {
+                try { return JSON.parse(localStorage.getItem('dream_session')); } catch { return null; }
+            });
             const [view, setView] = useState('pos');
             const [items, setItems] = useState([]);
             const [cart, setCart] = useState([]);
             const [stats, setStats] = useState({ s: 0, e: 0 });
             const [modal, setModal] = useState({ t: null, d: null });
+            const [newItem, setNewItem] = useState({ id:null, n:'', p:'', cost:'', u:'piece', b:'' });
             const [chat, setChat] = useState([]);
             const [msg, setMsg] = useState('');
             const [showChat, setShowChat] = useState(false);
-            const [newItem, setNewItem] = useState({ id:null, n:'', p:'', cost:'', u:'piece', b:'' });
 
             const searchRef = useRef();
             const unit = tenant?.business_type === 'auto' ? 'لتر' : 'كيلو';
@@ -130,39 +126,35 @@
                 <div className="min-h-screen flex items-center justify-center p-6">
                     <div className="glass w-full max-w-lg p-14 text-center shadow-2xl relative border-white/10">
                         <img src="logo.png" className="w-64 mx-auto mb-10 drop-shadow-2xl" />
-                        <input id="lic" className="text-center text-2xl !p-5 mb-6" placeholder="كود التفعيل DRM-XXXX" />
+                        <input id="lic" className="text-center text-2xl !p-6" placeholder="أدخل كود التفعيل" />
                         <button onClick={async ()=>{
                             const v = document.getElementById('lic').value.toUpperCase();
                             const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
-                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ في الكود");
-                        }} className="w-full py-5 btn-gold text-2xl rounded-2xl shadow-xl">دخول آمن للمنصة 🚀</button>
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ");
+                        }} className="w-full py-5 btn-gold text-2xl rounded-2xl mt-6 active:scale-95 transition-all">دخول آمن للمنصة 🚀</button>
                     </div>
                 </div>
             );
 
             return (
                 <div className="min-h-screen flex flex-col p-4 md:p-8 animate-in fade-in duration-500">
-                    {/* الفاتورة */}
                     <div id="receipt">
                         <div className="text-center border-b pb-2 mb-4 font-bold"><h2>{tenant.business_name}</h2><p>{new Date().toLocaleString()}</p></div>
                         <table className="w-full text-sm"><tbody>{cart.map((c, i) => (<tr key={i}><td align="right">{c.name}</td><td align="left">{c.price.toLocaleString()}</td></tr>))}</tbody></table>
                         <div className="text-center mt-4 border-t pt-2"><h3>المجموع: {cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</h3></div>
                     </div>
 
-                    {/* النوافذ المدمجة (Modals) */}
                     {modal.t === 'manual_expense' && (
-                        <div className="modal-bg no-print">
-                            <div className="glass p-10 w-full max-w-sm animate-in zoom-in">
+                        <div className="modal-overlay no-print">
+                            <div className="glass p-10 w-full max-w-sm">
                                 <h3 className="text-2xl font-black mb-6 text-rose-500">سحب من الصندوق</h3>
-                                <input id="ma" type="number" placeholder="المبلغ..." className="!text-center !text-3xl mb-4" />
+                                <input autoFocus id="ma" type="number" placeholder="المبلغ..." className="!text-center !text-3xl mb-4" />
                                 <input id="mr" placeholder="السبب..." className="!text-center mb-6" />
                                 <div className="flex gap-2">
                                     <button onClick={async ()=>{
                                         const a=parseFloat(document.getElementById('ma').value), r=document.getElementById('mr').value;
-                                        if(!a||!r) return;
-                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount:a, reason:r}]);
-                                        setModal({t:null}); loadStats();
-                                    }} className="flex-1 py-4 bg-rose-600 rounded-2xl font-black">تأكيد السحب</button>
+                                        if(a&&r){ await client.from('expenses').insert([{tenant_id:tenant.id, amount:a, reason:r}]); setModal({t:null}); loadStats(); }
+                                    }} className="flex-1 py-4 bg-rose-600 rounded-2xl font-black">تأكيد 💸</button>
                                     <button onClick={()=>setModal({t:null})} className="px-6 py-4 bg-white/10 rounded-2xl">إلغاء</button>
                                 </div>
                             </div>
@@ -170,29 +162,28 @@
                     )}
 
                     {modal.t === 'restock' && (
-                        <div className="modal-bg no-print">
-                            <div className="glass p-10 w-full max-w-md animate-in zoom-in">
+                        <div className="modal-overlay no-print">
+                            <div className="glass p-10 w-full max-w-md">
                                 <h3 className="text-2xl font-black mb-6">توريد: {modal.d.name}</h3>
-                                <input id="rq" type="number" placeholder={`الكمية (${unit})`} className="!text-center !text-3xl mb-8" />
+                                <input autoFocus id="rq" type="number" placeholder={`الكمية (${unit})`} className="!text-center !text-3xl mb-8" />
                                 <div className="grid grid-cols-2 gap-2 mb-8">
                                     <button onClick={async ()=>{
                                         const q = parseFloat(document.getElementById('rq').value);
                                         await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
-                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.d.cost_price||0), reason: `توريد كاش: ${modal.d.name}`}]);
+                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.d.cost_price||0), reason: `توريد: ${modal.d.name}`}]);
                                         setModal({t:null}); loadData(); loadStats();
-                                    }} className="bg-emerald-600 py-4 rounded-xl font-bold">واصل كاش 💸</button>
+                                    }} className="bg-emerald-600 py-4 rounded-xl font-bold">كاش 💸</button>
                                     <button onClick={async ()=>{
                                         const q = parseFloat(document.getElementById('rq').value);
                                         await client.from('products').update({stock_quantity: modal.d.stock_quantity + q}).eq('id', modal.d.id);
                                         setModal({t:null}); loadData();
-                                    }} className="bg-indigo-600 py-4 rounded-xl font-bold">آجل ديون ⏳</button>
+                                    }} className="bg-indigo-600 py-4 rounded-xl font-bold">آجل ⏳</button>
                                 </div>
-                                <button onClick={()=>setModal({t:null})} className="w-full opacity-50 font-bold">إلغاء</button>
+                                <button onClick={()=>setModal({t:null})} className="w-full py-2 opacity-50 font-bold">إلغاء</button>
                             </div>
                         </div>
                     )}
 
-                    {/* الهيدر */}
                     <header className="flex justify-between items-center mb-8 no-print">
                         <h1 className="text-2xl font-black italic text-indigo-400 uppercase tracking-tighter">{tenant.business_name}</h1>
                         <div className="flex bg-slate-900/60 backdrop-blur-md p-1.5 rounded-2xl gap-1 border border-white/5">
@@ -202,7 +193,7 @@
                                 </button>
                             ))}
                             <button onClick={()=>setShowChat(true)} className="px-4 py-2.5 rounded-xl bg-amber-400 text-amber-950 font-black relative">الدعم {chat.some(m=>!m.is_read&&m.sender==='admin')&&<span class="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>}</button>
-                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black">✕</button>
+                            <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-3 text-rose-500 font-black text-xl">✕</button>
                         </div>
                     </header>
 
@@ -211,7 +202,7 @@
                             <div className="grid lg:grid-cols-[1fr_420px] gap-10">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                     {items.map(i => (
-                                        <div key={i.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50" onClick={() => i.unit_type !== 'kg' && addToCart(i, 1, 'قطعة')}>
+                                        <div key={i.id} className="glass p-6 cursor-pointer hover:border-indigo-500/50 transition-all" onClick={() => i.unit_type !== 'kg' && addToCart(i, 1, 'Unit')}>
                                             <div className="flex justify-between items-start">
                                                 <span className="text-[9px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{i.category}</span>
                                                 <div className="font-black text-lg text-indigo-400">{i.price.toLocaleString()}</div>
@@ -237,33 +228,24 @@
                                         ))}
                                     </div>
                                     <div className="p-8 bg-black/30 border-t border-white/5">
-                                        <div className="flex justify-between font-black text-2xl mb-6"><span>Total</span><span style={{color: 'var(--accent)'}}><DynamicNum value={cart.reduce((a,b)=>a+b.price, 0)} /></span></div>
+                                        <div className="flex justify-between font-black text-2xl mb-6"><span>Total</span><span style={{color: 'var(--accent)'}}><SafeCounter value={cart.reduce((a,b)=>a+b.price, 0)} /></span></div>
                                         <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-lg">تأكيد البيع ✅</button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {view === 'reports' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center animate-in slide-in-from-bottom-10 duration-700">
-                                <div className="glass p-14 border-indigo-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">مبيعات اليوم</p><h2 className="text-6xl font-black text-indigo-400"><DynamicNum value={stats.s} /></h2></div>
-                                <div className="glass p-14 border-rose-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><DynamicNum value={stats.e} /></h2></div>
-                                <div className="glass p-14 border-emerald-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">الصافي الفعلي</p><h2 className="text-6xl font-black text-emerald-500"><DynamicNum value={stats.s - stats.e} /></h2></div>
-                                <div className="col-span-full flex justify-center"><button onClick={()=>setModal({t:'manual_expense'})} className="px-10 py-5 bg-rose-600 text-white rounded-3xl font-black text-xl shadow-2xl">تسجيل سحب يدوي 💸</button></div>
-                            </div>
-                        )}
-                        
                         {view === 'inventory' && (
                             <div className="glass p-10 animate-in fade-in">
-                                <h2 className="text-3xl font-black mb-10 italic uppercase text-indigo-400">إدارة المواد</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-3xl border border-white/10 shadow-2xl">
+                                <h2 className="text-3xl font-black mb-10 italic uppercase text-indigo-400">إدارة المخزن والمنيو</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-3xl border border-white/10 shadow-2xl">
                                     <input placeholder="باركود" value={newItem.b} onChange={e => {
                                         const c = e.target.value.trim(); const x = items.find(i=>i.barcode === c);
                                         if(x) setNewItem({id:x.id, n:x.name, p:x.price, cost:x.cost_price, u:x.unit_type, b:c});
                                         else setNewItem({...newItem, b:c, id:null});
-                                    }} className="!bg-slate-800 !text-white" />
+                                    }} />
                                     <input placeholder="الاسم" value={newItem.n} onChange={e=>setNewItem({...newItem, n:e.target.value})} />
-                                    <input type="number" placeholder="البيع" value={newItem.p} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <input type="number" placeholder="البيع" value={newItem.p} onChange={e=>setNewItem({...newItem, p:e.target.value})} />
                                     <input type="number" placeholder="التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
                                     <select value={newItem.u} onChange={e=>setNewItem({...newItem, u:e.target.value})}><option value="piece">قطعة</option><option value="kg">بالـ {unit}</option></select>
                                     <button onClick={async ()=>{
@@ -274,10 +256,10 @@
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {items.map(i => (
-                                        <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5">
+                                        <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5 hover:border-white/20 transition-all">
                                             <div className="flex justify-between items-start">
                                                 <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-30 mt-1 uppercase">BC: {i.barcode || 'N/A'}</p></div>
-                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unit:'ق'}</span>
+                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unit:'ق'}</span>
                                             </div>
                                             <button onClick={()=>setModal({t:'restock', d:i})} className="w-full py-3 bg-white/5 text-indigo-400 border border-indigo-500/20 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد (+)</button>
                                         </div>
@@ -285,7 +267,18 @@
                                 </div>
                             </div>
                         )}
-                        
+
+                        {view === 'reports' && (
+                            <div className="space-y-12 animate-in slide-in-from-bottom-10">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                                    <div className="glass p-14 border-indigo-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">مبيعات اليوم</p><h2 className="text-6xl font-black text-indigo-400"><SafeCounter value={stats.s} /></h2></div>
+                                    <div className="glass p-14 border-rose-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">المسحوبات</p><h2 className="text-6xl font-black text-rose-500"><SafeCounter value={stats.e} /></h2></div>
+                                    <div className="glass p-14 border-emerald-500/10"><p className="text-xs opacity-30 mb-4 font-bold uppercase">الصافي الفعلي</p><h2 className="text-6xl font-black text-emerald-500"><SafeCounter value={stats.s - stats.e} /></h2></div>
+                                </div>
+                                <div className="flex justify-center"><button onClick={()=>setModal({t:'manual_expense'})} className="px-12 py-6 bg-rose-600 text-white rounded-[2.5rem] font-black text-xl shadow-2xl active:scale-95 transition-all">تسجيل سحب يدوي 💸</button></div>
+                            </div>
+                        )}
+
                         {view === 'settings' && (
                             <div className="max-w-2xl mx-auto glass p-12 space-y-8 animate-in slide-in-from-bottom-10">
                                 <h2 className="text-3xl font-black border-b border-white/5 pb-4 italic text-[#b68c58]">⚙️ إعدادات الحساب</h2>
@@ -302,7 +295,7 @@
                                 {chat.map(m=><div key={m.id} className={`p-3 rounded-2xl text-xs font-bold shadow-sm ${m.sender==='client'?'bg-white/10 text-white mr-auto rounded-bl-none':'bg-indigo-600 text-white ml-auto rounded-br-none'}`}>{m.message}</div>)}
                             </div>
                             <div className="p-4 border-t border-white/5 bg-slate-950 flex gap-2">
-                                <input className="flex-1 !p-2 !text-sm !bg-slate-900 !text-white" value={msg} onChange={e=>setMsg(e.target.value)} placeholder="اكتب هنا..." onKeyPress={e=>e.key==='Enter'&&(async()=>{if(!msg)return; await client.from('support_messages').insert([{tenant_id:tenant.id, sender:'client', message:msg}]); setMsg(''); loadChat();})()} />
+                                <input className="flex-1 !p-2 !text-sm !bg-slate-900 !text-white" value={msg} onChange={e=>setMsg(e.target.value)} placeholder="اكتب هنا..." />
                                 <button onClick={async ()=>{if(!msg)return; await client.from('support_messages').insert([{tenant_id:tenant.id, sender:'client', message:msg}]); setMsg(''); loadChat();}} className="bg-indigo-600 px-5 rounded-xl font-black">ارسل</button>
                             </div>
                         </div>
@@ -310,7 +303,8 @@
                 </div>
             );
         }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
