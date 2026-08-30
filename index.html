@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Elite POS & Inventory</title>
+    <title>Dream Systems | Intelligent POS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -26,7 +26,6 @@
         
         @keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-stat { animation: countUp 0.6s ease-out forwards; }
-        
         @media print { .no-print { display: none; } #print-area { display: block !important; width: 80mm; background: white; color: black; padding: 5mm; } }
     </style>
 </head>
@@ -38,7 +37,6 @@
         const { useState, useEffect, useRef } = React;
         const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
 
-        // عداد الأرقام
         const Counter = ({ value }) => {
             const [num, setNum] = useState(0);
             useEffect(() => {
@@ -62,17 +60,24 @@
             const [stats, setStats] = useState({ sales: 0, expenses: 0 });
             const [license, setLicense] = useState('');
             const [bcSearch, setBcSearch] = useState('');
-            const [newItem, setNewItem] = useState({ name: '', price: '', category: 'عام', unit: 'piece', barcode: '' });
-            const [loading, setLoading] = useState(false);
+            
+            // فورم الإضافة الذكي
+            const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
+
             const searchRef = useRef(null);
+            const invBarcodeRef = useRef(null);
 
             useEffect(() => {
                 if (tenant) {
                     document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type);
                     loadData(); loadStats();
-                    if(view === 'pos' && searchRef.current) searchRef.current.focus();
                 }
-            }, [tenant, view]);
+            }, [tenant]);
+
+            useEffect(() => {
+                if(view === 'pos' && searchRef.current) searchRef.current.focus();
+                if(view === 'inventory' && invBarcodeRef.current) invBarcodeRef.current.focus();
+            }, [view]);
 
             async function loadData() {
                 const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name');
@@ -85,6 +90,57 @@
                 const { data: e } = await client.from('expenses').select('amount').eq('tenant_id', tenant.id).gte('created_at', today);
                 setStats({ sales: s?.reduce((a,b)=>a+b.total_amount, 0)||0, expenses: e?.reduce((a,b)=>a+b.amount, 0)||0 });
             }
+
+            // التعرف التلقائي في المخزن
+            const handleInventoryBarcode = (code) => {
+                const existing = items.find(i => i.barcode === code.trim());
+                if (existing) {
+                    setNewItem({
+                        id: existing.id,
+                        name: existing.name,
+                        price: existing.price,
+                        category: existing.category,
+                        unit: existing.unit_type,
+                        barcode: existing.barcode,
+                        cost: existing.cost_price || 0
+                    });
+                } else {
+                    setNewItem({ ...newItem, barcode: code, id: null });
+                }
+            };
+
+            const saveProduct = async () => {
+                if(!newItem.name || !newItem.price) return alert("اكمل البيانات الأساسية");
+                const payload = {
+                    name: newItem.name,
+                    price: parseFloat(newItem.price),
+                    cost_price: parseFloat(newItem.cost || 0),
+                    category: newItem.category,
+                    unit_type: newItem.unit,
+                    barcode: newItem.barcode,
+                    tenant_id: tenant.id
+                };
+
+                if (newItem.id) {
+                    // تحديث مادة موجودة
+                    await client.from('products').update(payload).eq('id', newItem.id);
+                    const restock = prompt("المادة موجودة مسبقاً، هل تريد إضافة كمية للمخزن؟ (اتركه فارغاً إذا كنت تريد تعديل السعر فقط)");
+                    if(restock) {
+                        const val = parseFloat(restock);
+                        const isCash = confirm("هل تم سحب ثمن هذه الكمية من الكاش؟");
+                        const target = items.find(i => i.id === newItem.id);
+                        await client.from('products').update({stock_quantity: target.stock_quantity + val}).eq('id', newItem.id);
+                        if(isCash) await client.from('expenses').insert([{tenant_id:tenant.id, amount: val * payload.cost_price, reason: `تجهيز: ${payload.name}`}]);
+                    }
+                } else {
+                    // إضافة مادة جديدة تماماً
+                    await client.from('products').insert([payload]);
+                }
+                
+                alert("تم الحفظ بنجاح ✨");
+                setNewItem({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
+                loadData(); loadStats();
+            };
 
             const addToCart = (item, qty, label, isPrice = false) => {
                 let fQty = isPrice ? parseFloat(qty)/item.price : qty;
@@ -103,18 +159,16 @@
                 window.print(); window.location.reload();
             };
 
-            // واجهة تفعيل النظام
             if (!tenant) return (
                 <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950">
-                    <div className="glass w-full max-w-lg p-16 text-center animate-in zoom-in duration-500">
-                        <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center text-6xl font-black italic shadow-2xl">D</div>
-                        <h1 className="text-3xl font-black mb-12 italic tracking-widest">DREAM SYSTEMS</h1>
-                        <input className="text-center text-2xl !p-5 mb-6" placeholder="DRM-XXXX" onChange={e => setLicense(e.target.value.toUpperCase())} />
+                    <div className="glass w-full max-w-lg p-16 text-center">
+                        <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center text-6xl font-black italic">D</div>
+                        <h1 className="text-4xl font-black mb-12 italic tracking-widest text-white">DREAM SYSTEMS</h1>
+                        <input className="text-center text-2xl !p-5 mb-6" placeholder="كود التفعيل" id="lic" />
                         <button onClick={async ()=>{
-                            setLoading(true);
-                            const {data} = await client.from('tenants').select('*').eq('license_key', license).maybeSingle();
-                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); } else alert("خطأ في الكود");
-                            setLoading(false);
+                            const val = document.getElementById('lic').value.toUpperCase();
+                            const {data} = await client.from('tenants').select('*').eq('license_key', val).maybeSingle();
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ في الكود");
                         }} className="w-full py-5 bg-indigo-600 rounded-3xl font-black text-xl shadow-2xl">تنشيط السحاب 🚀</button>
                     </div>
                 </div>
@@ -125,20 +179,18 @@
                     <header className="p-6 flex justify-between items-center sticky top-0 z-50 no-print">
                         <div className="flex flex-col">
                             <h1 className="font-black text-2xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
-                            <span className="text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">System Online</span>
+                            <span className="text-[10px] font-black opacity-30 uppercase tracking-[0.5em]">Inventory Engine Active</span>
                         </div>
                         <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-3xl gap-1 no-print">
-                            {['pos', 'inventory', 'reports'].map(v => (
-                                <button key={v} onClick={()=>setView(v)} className={`px-6 py-3 rounded-2xl font-black text-[11px] transition-all ${view===v?'tab-active':'opacity-40 hover:opacity-100'}`}>
-                                    {v==='pos'?'البيع':v==='inventory'?'المخزن والمنيو':'التقارير'}
-                                </button>
-                            ))}
+                            <button onClick={()=>setView('pos')} className={`px-6 py-3 rounded-2xl font-black text-[11px] uppercase transition-all ${view==='pos'?'tab-active':'opacity-40'}`}>البيع</button>
+                            <button onClick={()=>setView('inventory')} className={`px-6 py-3 rounded-2xl font-black text-[11px] uppercase transition-all ${view==='inventory'?'tab-active':'opacity-40'}`}>المخزن</button>
+                            <button onClick={()=>setView('reports')} className={`px-6 py-3 rounded-2xl font-black text-[11px] uppercase transition-all ${view==='reports'?'tab-active':'opacity-40'}`}>التقارير</button>
                             <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-4 text-rose-500 font-black">✕</button>
                         </div>
                     </header>
 
                     <main className="p-4 lg:p-8 max-w-[1600px] mx-auto w-full no-print">
-                        {/* 1. واجهة البيع السريع */}
+                        {/* واجهة البيع */}
                         {view === 'pos' && (
                             <div className="space-y-6">
                                 <div className="flex justify-center mb-8">
@@ -146,13 +198,12 @@
                                         ref={searchRef}
                                         value={bcSearch}
                                         onChange={(e)=>{
-                                            const val = e.target.value;
-                                            setBcSearch(val);
-                                            const prod = items.find(i=>i.barcode === val);
+                                            setBcSearch(e.target.value);
+                                            const prod = items.find(i=>i.barcode === e.target.value.trim());
                                             if(prod) { addToCart(prod, 1, 'سكنر'); setBcSearch(''); }
                                         }}
                                         className="!w-full max-w-md !bg-white border-4 border-indigo-500/20 !text-xl text-center" 
-                                        placeholder="امسح الباركود للبيع السريع..." 
+                                        placeholder="امسح الباركود للبيع الفوري..." 
                                     />
                                 </div>
                                 <div className="grid lg:grid-cols-[1fr_420px] gap-10">
@@ -160,7 +211,7 @@
                                         {items.map(item => (
                                             <div key={item.id} className="glass p-8 cursor-pointer group hover:scale-[1.03] transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
                                                 <div className="flex justify-between items-start mb-6">
-                                                    <span className="text-[9px] font-black px-3 py-1 rounded-full bg-white/10 opacity-60 uppercase">{item.category}</span>
+                                                    <span className="text-[10px] font-black px-3 py-1 rounded-full bg-white/10 opacity-60 uppercase">{item.category}</span>
                                                     <div className="font-black text-xl" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
                                                 </div>
                                                 <h3 className="font-bold text-2xl mb-6">{item.name}</h3>
@@ -175,8 +226,8 @@
                                             </div>
                                         ))}
                                     </div>
-                                    <div className="glass h-[82vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/50">
-                                        <div className="p-6 bg-white/[0.02] border-b border-white/10 font-black text-center text-xs opacity-40 uppercase tracking-widest">Order Summary</div>
+                                    <div className="glass h-[82vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/50 border-white/5">
+                                        <div className="p-6 bg-white/[0.02] font-black text-center text-xs tracking-widest opacity-40 uppercase">Invoice</div>
                                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
                                             {cart.map((c, i) => (
                                                 <div key={i} className="flex justify-between items-center border-b border-white/5 pb-4">
@@ -200,40 +251,73 @@
                             </div>
                         )}
 
-                        {/* 2. إدارة المنيو والمخزن المتطورة */}
+                        {/* إدارة المخزن والمنيو الذكية */}
                         {view === 'inventory' && (
                             <div className="glass p-10 animate-in fade-in zoom-in duration-500">
-                                <h2 className="text-3xl font-black mb-12 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المواد والمخزن</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-16 bg-white/5 p-8 rounded-3xl border border-white/10">
-                                    <input placeholder="باركود (سكنر)" value={newItem.barcode} onChange={e=>setNewItem({...newItem, barcode:e.target.value})} className="lg:col-span-1 !bg-slate-800 !text-white border-2 border-indigo-500/20" />
-                                    <input placeholder="اسم المادة" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
-                                    <input placeholder="القسم" value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} />
-                                    <input type="number" placeholder="السعر" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
-                                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">بالقطعة</option><option value="kg">بالكيلو</option></select>
-                                    <button onClick={async ()=>{
-                                        if(!newItem.name || !newItem.price) return alert("املاً البيانات");
-                                        await client.from('products').insert([{...newItem, price:parseFloat(newItem.price), unit_type:newItem.unit, tenant_id:tenant.id}]);
-                                        loadData(); setNewItem({name:'', price:'', category:'عام', unit:'piece', barcode:''});
-                                    }} className="lg:col-span-5 py-4 bg-indigo-600 rounded-xl font-black">حفظ في القائمة ✨</button>
+                                <div className="flex justify-between items-center mb-12">
+                                    <h2 className="text-3xl font-black italic uppercase" style={{color: 'var(--accent)'}}>إدارة المواد والباركود</h2>
+                                    {newItem.id && <button onClick={()=>setNewItem({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' })} className="text-rose-500 font-bold border-b border-rose-500">إلغاء التعديل / مسح الحقول</button>}
                                 </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16 bg-white/5 p-8 rounded-3xl border border-white/10">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black opacity-40 uppercase mr-2">باركود (سكنر)</label>
+                                        <input 
+                                            ref={invBarcodeRef}
+                                            placeholder="امسح المادة هنا..." 
+                                            value={newItem.barcode} 
+                                            onChange={e => handleInventoryBarcode(e.target.value)}
+                                            className="!bg-slate-800 !text-white border-2 border-indigo-500/20" 
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black opacity-40 uppercase mr-2">اسم المادة</label>
+                                        <input placeholder="الاسم..." value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black opacity-40 uppercase mr-2">سعر البيع</label>
+                                        <input type="number" placeholder="السعر..." value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black opacity-40 uppercase mr-2">سعر التكلفة</label>
+                                        <input type="number" placeholder="التكلفة..." value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black opacity-40 uppercase mr-2">النظام</label>
+                                        <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}>
+                                            <option value="piece">بالقطعة</option>
+                                            <option value="kg">بالكيلو</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col gap-2 justify-end">
+                                        <button onClick={saveProduct} className="py-4 bg-indigo-600 rounded-xl font-black shadow-lg">
+                                            {newItem.id ? 'تحديث المادة ✨' : 'حفظ جديد ✨'}
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {items.map(i => (
-                                        <div key={i.id} className="glass p-6 flex flex-col gap-4">
+                                        <div key={i.id} className="glass p-6 flex flex-col gap-4 border-white/5">
                                             <div className="flex justify-between items-center">
-                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-40">باركود: {i.barcode || 'N/A'}</p></div>
+                                                <div onClick={()=>setNewItem({id: i.id, name: i.name, price: i.price, category: i.category, unit: i.unit_type, barcode: i.barcode, cost: i.cost_price})} className="cursor-pointer">
+                                                    <b className="text-xl hover:text-indigo-400">{i.name}</b>
+                                                    <p className="text-xs opacity-40">باركود: {i.barcode || 'N/A'}</p>
+                                                </div>
                                                 <span className="text-xs font-black px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-500">{i.stock_quantity.toFixed(2)}</span>
                                             </div>
                                             <div className="flex gap-2">
-                                                <input type="number" placeholder="كمية" className="!p-2 !text-xs !bg-white/5 !text-white !w-24 rounded-lg" id={`stock-${i.id}`} />
+                                                <input type="number" placeholder="تجهيز" className="!p-2 !text-xs !bg-white/5 !text-white !w-24 rounded-lg" id={`inv-restock-${i.id}`} />
                                                 <button onClick={async ()=>{
-                                                    const val = document.getElementById(`stock-${i.id}`).value;
-                                                    if(val) {
-                                                        await client.from('products').update({stock_quantity: i.stock_quantity + parseFloat(val)}).eq('id', i.id);
-                                                        document.getElementById(`stock-${i.id}`).value = '';
-                                                        loadData();
-                                                    }
-                                                }} className="bg-indigo-600/20 text-indigo-400 px-4 py-2 rounded-xl text-xs font-black flex-1">تجهيز واصل (+)</button>
-                                                <button onClick={async()=> {if(confirm('حذف؟')){await client.from('products').delete().eq('id',i.id); loadData();}}} className="text-rose-500 font-black px-4">✕</button>
+                                                    const val = parseFloat(document.getElementById(`inv-restock-${i.id}`).value);
+                                                    if(!val) return;
+                                                    const isCash = confirm("هل المبلغ واصل كاش؟");
+                                                    await client.from('products').update({stock_quantity: i.stock_quantity + val}).eq('id', i.id);
+                                                    if(isCash) await client.from('expenses').insert([{tenant_id:tenant.id, amount: val * (i.cost_price || 0), reason: `تجهيز: ${i.name}`}]);
+                                                    document.getElementById(`inv-restock-${i.id}`).value = '';
+                                                    loadData(); loadStats();
+                                                }} className="bg-white/10 flex-1 py-2 rounded-xl text-xs font-black">إضافة (+)</button>
+                                                <button onClick={async()=> {if(confirm('حذف؟')){await client.from('products').delete().eq('id',i.id); loadData();}}} className="text-rose-500 px-4 font-black">✕</button>
                                             </div>
                                         </div>
                                     ))}
@@ -241,10 +325,10 @@
                             </div>
                         )}
 
-                        {/* 3. التقارير بالعدادات */}
+                        {/* التقارير */}
                         {view === 'reports' && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                <div className="glass p-12 text-center animate-stat">
+                                <div className="glass p-12 text-center animate-stat border-indigo-500/10">
                                     <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">مبيعات اليوم</p>
                                     <h2 className="text-6xl font-black tracking-tighter" style={{color: 'var(--accent)'}}><Counter value={stats.sales} /></h2>
                                 </div>
@@ -252,14 +336,14 @@
                                     <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">المسحوبات</p>
                                     <h2 className="text-6xl font-black tracking-tighter text-rose-500"><Counter value={stats.expenses} /></h2>
                                 </div>
-                                <div className="glass p-12 text-center animate-stat">
+                                <div className="glass p-12 text-center animate-stat border-emerald-500/10">
                                     <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">الصافي الفعلي</p>
                                     <h2 className="text-6xl font-black tracking-tighter text-emerald-500"><Counter value={stats.sales - stats.expenses} /></h2>
                                 </div>
                             </div>
                         )}
                     </main>
-                    <footer className="p-10 text-center opacity-10 text-[9px] font-black uppercase tracking-[1em]">Dream Systems Premium Premium</footer>
+                    <footer className="p-10 text-center opacity-10 text-[9px] font-black uppercase tracking-[1em]">Dream Systems Intelligence Engine</footer>
                 </div>
             );
         }
