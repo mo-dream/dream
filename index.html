@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dream Systems | Professional POS</title>
+    <title>Dream Systems | Interactive Visual POS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -13,17 +13,20 @@
 
     <style>
         :root { --accent: #6366f1; --bg-img: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop'); }
-        [data-theme='food'] { --accent: #ea580c; --bg-img: url('https://images.unsplash.com/photo-1550503990-bcff333d837a?q=80&w=2000&auto=format&fit=crop'); }
+        [data-theme='food'] { --accent: #ea580c; --bg-img: url('https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?q=80&w=2000&auto=format&fit=crop'); }
         [data-theme='retail'] { --accent: #059669; --bg-img: url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop'); }
         [data-theme='auto'] { --accent: #ca8a04; --bg-img: url('https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?q=80&w=2000&auto=format&fit=crop'); }
 
         body { background-color: #020617; color: #fff; font-family: 'Cairo', sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
-        .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.93), rgba(2, 6, 23, 0.93)), var(--bg-img); background-size: cover; background-position: center; z-index: -2; transition: 1s; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(40px) saturate(120%); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 40px; }
+        .dynamic-bg { position: fixed; inset: 0; background-image: linear-gradient(rgba(2, 6, 23, 0.93), rgba(2, 6, 23, 0.93)), var(--bg-img); background-size: cover; background-position: center; z-index: -2; transition: 1s ease-in-out; }
+        
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(40px) saturate(120%); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 40px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        
         input, select { background: rgba(255, 255, 255, 0.95) !important; color: #000 !important; font-weight: 900 !important; border-radius: 12px !important; padding: 12px !important; border: none !important; width: 100%; outline: none; }
         .tab-active { background: var(--accent) !important; color: white !important; box-shadow: 0 0 25px var(--accent); }
-        .btn-cash { background: #10b981; color: white; padding: 8px 16px; border-radius: 10px; font-weight: 900; font-size: 11px; }
-        .btn-credit { background: #6366f1; color: white; padding: 8px 16px; border-radius: 10px; font-weight: 900; font-size: 11px; }
+        .number-glow { text-shadow: 0 0 15px var(--accent); }
+
         @media print { .no-print { display: none; } #print-area { display: block !important; width: 80mm; background: white; color: black; padding: 5mm; } }
     </style>
 </head>
@@ -35,6 +38,34 @@
         const { useState, useEffect, useRef } = React;
         const client = supabase.createClient('https://dyxdtlbqurnovrymopch.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5eGR0bGJxdXJub3ZyeW1vcGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1NzY4OTgsImV4cCI6MjEwMzE1Mjg5OH0.YyfoQ6b5DUlqQS7-AN-p-zH3GLK00zvtEIBcoMhAYPA');
 
+        // محرك الأرقام التفاعلي - Animated Counter
+        const AnimatedCounter = ({ value }) => {
+            const [display, setDisplay] = useState(0);
+            const lastValue = useRef(0);
+
+            useEffect(() => {
+                const start = lastValue.current;
+                const end = parseInt(value) || 0;
+                if (start === end) return;
+
+                const duration = 1000; // ثانية واحدة
+                let startTime = null;
+
+                const animate = (now) => {
+                    if (!startTime) startTime = now;
+                    const progress = Math.min((now - startTime) / duration, 1);
+                    const current = Math.floor(progress * (end - start) + start);
+                    setDisplay(current);
+                    if (progress < 1) requestAnimationFrame(animate);
+                };
+
+                requestAnimationFrame(animate);
+                lastValue.current = end;
+            }, [value]);
+
+            return <span>{display.toLocaleString()}</span>;
+        };
+
         function App() {
             const [tenant, setTenant] = useState(() => JSON.parse(localStorage.getItem('dream_session')));
             const [view, setView] = useState('pos');
@@ -42,19 +73,25 @@
             const [cart, setCart] = useState([]);
             const [stats, setStats] = useState({ sales: 0, expenses: 0 });
             const [bcSearch, setBcSearch] = useState('');
-            const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '', initial_stock: 0, initial_pay: 'credit' });
-            
+            const [loading, setLoading] = useState(false);
+            const [modal, setModal] = useState({ type: null, data: null });
+            const [newItem, setNewItem] = useState({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '' });
+
             const searchRef = useRef(null);
+            const invBarcodeRef = useRef(null);
             const unitLabel = tenant?.business_type === 'auto' ? 'لتر' : 'كيلو';
 
             useEffect(() => {
                 if (tenant) {
-                    document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type || 'retail');
+                    document.getElementById('body-tag').setAttribute('data-theme', tenant.business_type);
                     loadData(); loadStats();
                 }
             }, [tenant]);
 
-            useEffect(() => { if(view === 'pos' && searchRef.current) searchRef.current.focus(); }, [view]);
+            useEffect(() => {
+                if(view === 'pos' && searchRef.current) searchRef.current.focus();
+                if(view === 'inventory' && invBarcodeRef.current) invBarcodeRef.current.focus();
+            }, [view]);
 
             async function loadData() {
                 const { data } = await client.from('products').select('*').eq('tenant_id', tenant.id).order('name');
@@ -72,12 +109,13 @@
                 let fQty = isPriceInput ? parseFloat(qty)/item.price : qty;
                 let fPrice = isPriceInput ? parseFloat(qty) : item.price * qty;
                 setCart(prev => [...prev, { ...item, cart_qty: fQty, price: fPrice, cart_label: label, id: Date.now(), original_id: item.id }]);
+                setModal({type: null});
             };
 
             const checkout = async () => {
                 if(!cart.length) return;
-                const total = cart.reduce((a,b)=>a+b.price, 0);
-                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: total }]).select().single();
+                setLoading(true);
+                const { data: order } = await client.from('orders').insert([{ tenant_id: tenant.id, total_amount: cart.reduce((a,b)=>a+b.price, 0) }]).select().single();
                 for(const c of cart) {
                     const t = items.find(i=>i.id === c.original_id);
                     await client.from('products').update({stock_quantity: (t.stock_quantity || 0) - c.cart_qty}).eq('id', c.original_id);
@@ -85,105 +123,85 @@
                 window.print(); window.location.reload();
             };
 
-            // وظيفة التوريد (واصل أو آجل)
-            const handleRestock = async (product, isCash) => {
-                const qtyInput = document.getElementById(`inv-q-${product.id}`);
-                const qty = parseFloat(qtyInput.value);
-                if (!qty || qty <= 0) return alert("أدخل كمية صحيحة");
-
-                // تحديث المخزون
-                await client.from('products').update({stock_quantity: product.stock_quantity + qty}).eq('id', product.id);
-
-                // إذا كان "كاش"، نسحب من الصندوق
-                if (isCash) {
-                    const totalCost = qty * (product.cost_price || 0);
-                    if (totalCost > 0) {
-                        await client.from('expenses').insert([{
-                            tenant_id: tenant.id,
-                            amount: totalCost,
-                            reason: `شراء بضاعة (واصل كاش): ${product.name}`
-                        }]);
-                    }
-                }
-
-                qtyInput.value = '';
-                alert("تم تحديث المخزون والحسابات ✅");
-                loadData(); loadStats();
-            };
-
-            const saveNewProduct = async () => {
-                if(!newItem.name || !newItem.price) return alert("اكمل البيانات");
-                const cost = parseFloat(newItem.cost || 0);
-                const stock = parseFloat(newItem.initial_stock || 0);
-                
-                const { data: prod, error } = await client.from('products').insert([{
-                    name: newItem.name,
-                    price: parseFloat(newItem.price),
-                    cost_price: cost,
-                    category: newItem.category,
-                    unit_type: newItem.unit,
-                    barcode: newItem.barcode,
-                    stock_quantity: stock,
-                    tenant_id: tenant.id
-                }]).select().single();
-
-                if (stock > 0 && newItem.initial_pay === 'paid') {
-                    await client.from('expenses').insert([{
-                        tenant_id: tenant.id,
-                        amount: stock * cost,
-                        reason: `شراء بضاعة ابتدائية (كاش): ${newItem.name}`
-                    }]);
-                }
-
-                setNewItem({ id: null, name: '', price: '', category: 'عام', unit: 'piece', barcode: '', cost: '', initial_stock: 0, initial_pay: 'credit' });
-                loadData(); loadStats(); alert("تمت الإضافة بنجاح");
-            };
-
+            // واجهة الدخول
             if (!tenant) return (
                 <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950">
-                    <div className="glass w-full max-w-md p-16 text-center shadow-2xl">
-                        <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto mb-10 flex items-center justify-center text-4xl font-black italic shadow-indigo-500/50 shadow-xl">D</div>
-                        <h1 className="text-3xl font-black mb-10 text-indigo-400">DREAM SYSTEMS</h1>
-                        <input className="text-center text-xl p-4 mb-6 rounded-xl w-full" placeholder="DRM-XXXX" id="lic-in" />
+                    <div className="glass w-full max-w-md p-16 text-center border-white/10">
+                        <div className="w-24 h-24 bg-indigo-600 rounded-3xl mx-auto mb-10 flex items-center justify-center text-5xl font-black italic shadow-indigo-600/30 shadow-xl">D</div>
+                        <h1 className="text-3xl font-black mb-10 text-indigo-400 uppercase tracking-widest">Dream Systems</h1>
+                        <input className="text-center text-xl p-5 mb-6 rounded-2xl w-full !bg-white !text-black" placeholder="أدخل الكود DRM-XXXX" id="login-key" />
                         <button onClick={async ()=>{
-                            const val = document.getElementById('lic-in').value.toUpperCase();
-                            const {data} = await client.from('tenants').select('*').eq('license_key', val).maybeSingle();
-                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ في الكود");
-                        }} className="w-full py-4 bg-indigo-600 rounded-xl font-black text-xl shadow-lg">تنشيط المحل 🚀</button>
+                            const v = document.getElementById('login-key').value.toUpperCase();
+                            const {data} = await client.from('tenants').select('*').eq('license_key', v).maybeSingle();
+                            if(data) { localStorage.setItem('dream_session', JSON.stringify(data)); setTenant(data); window.location.reload(); } else alert("خطأ");
+                        }} className="w-full py-5 bg-indigo-600 rounded-2xl font-black text-xl active:scale-95 shadow-lg">دخول للنظام 🚀</button>
                     </div>
                 </div>
             );
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    {/* Header */}
-                    <header className="p-4 flex justify-between items-center sticky top-0 z-50 no-print">
-                        <h1 className="font-black text-xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
-                        <div className="flex bg-white/5 backdrop-blur-md p-1 rounded-2xl gap-1 no-print">
+                    {/* Modals - النوافذ المخصصة */}
+                    {modal.type === 'custom_amount' && (
+                        <div className="modal-overlay">
+                            <div className="glass p-12 w-full max-w-sm animate-in zoom-in duration-300">
+                                <h3 className="text-2xl font-black mb-6 text-indigo-400">مبلغ مخصص: {modal.data.name}</h3>
+                                <input autoFocus type="number" id="custom-p" placeholder="أدخل المبلغ بالدينار..." className="!text-center !text-3xl mb-8" />
+                                <div className="flex gap-2">
+                                    <button onClick={()=>addToCart(modal.data, document.getElementById('custom-p').value, document.getElementById('custom-p').value+' د.ع', true)} className="flex-1 py-5 bg-indigo-600 rounded-2xl font-black text-xl">إضافة للسلة 🛒</button>
+                                    <button onClick={()=>setModal({type:null})} className="px-6 bg-white/10 rounded-2xl font-bold">إلغاء</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {modal.type === 'restock' && (
+                        <div className="modal-overlay">
+                            <div className="glass p-10 w-full max-w-md animate-in zoom-in duration-300">
+                                <h3 className="text-2xl font-black mb-6 text-indigo-400">تجهيز: {modal.data.name}</h3>
+                                <input autoFocus id="restock-qty" type="number" placeholder={`الكمية بالـ (${unitLabel})`} className="!text-center !text-3xl mb-8" />
+                                <div className="grid grid-cols-2 gap-2 mb-8">
+                                    <button onClick={async ()=>{
+                                        const q = parseFloat(document.getElementById('restock-qty').value);
+                                        await client.from('products').update({stock_quantity: modal.data.stock_quantity + q}).eq('id', modal.data.id);
+                                        await client.from('expenses').insert([{tenant_id:tenant.id, amount: q * (modal.data.cost_price||0), reason: `تجهيز كاش: ${modal.data.name}`}]);
+                                        setModal({type:null}); loadData(); loadStats();
+                                    }} className="bg-emerald-600 py-4 rounded-xl font-black text-xs">توريد كاش 💸</button>
+                                    <button onClick={async ()=>{
+                                        const q = parseFloat(document.getElementById('restock-qty').value);
+                                        await client.from('products').update({stock_quantity: modal.data.stock_quantity + q}).eq('id', modal.data.id);
+                                        setModal({type:null}); loadData();
+                                    }} className="bg-indigo-600 py-4 rounded-xl font-black text-xs">توريد آجل ⏳</button>
+                                </div>
+                                <button onClick={()=>setModal({type:null})} className="w-full py-3 bg-white/5 rounded-xl font-bold">إلغاء</button>
+                            </div>
+                        </div>
+                    )}
+
+                    <header className="p-6 flex justify-between items-center sticky top-0 z-50 no-print">
+                        <h1 className="font-black text-2xl italic tracking-tighter uppercase" style={{color: 'var(--accent)'}}>{tenant.business_name}</h1>
+                        <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-3xl gap-1 no-print">
                             {['pos', 'inventory', 'reports'].map(v => (
-                                <button key={v} onClick={()=>setView(v)} className={`px-5 py-2 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40'}`}>
-                                    {v==='pos'?'البيع':v==='inventory'?'المخزن':'التقارير'}
-                                </button>
+                                <button key={v} onClick={()=>setView(v)} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${view===v?'tab-active':'opacity-40'}`}>{v==='pos'?'البيع':v==='inventory'?'المخزن':'التقارير'}</button>
                             ))}
                             <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="px-4 text-rose-500 font-black">✕</button>
                         </div>
                     </header>
 
                     <main className="p-4 lg:p-8 max-w-[1600px] mx-auto w-full no-print">
-                        {/* 1. واجهة البيع */}
                         {view === 'pos' && (
                             <div className="space-y-6">
-                                <div className="flex justify-center mb-4">
+                                <div className="flex justify-center mb-6">
                                     <input ref={searchRef} value={bcSearch} onChange={(e)=>{
                                         setBcSearch(e.target.value);
                                         const prod = items.find(i=>i.barcode === e.target.value.trim());
-                                        if(prod) { addToCart(prod, 1, 'سكنر'); setBcSearch(''); }
-                                    }} className="!w-full max-w-md !bg-white !text-black text-center border-4 border-indigo-500/20" placeholder="امسح الباركود للبيع السريع..." />
+                                        if(prod) { addToCart(prod, 1, 'Scanner'); setBcSearch(''); }
+                                    }} className="!w-full max-w-md !bg-white !text-black text-center border-4 border-indigo-500/20 shadow-2xl" placeholder="امسح الباركود للبيع الفوري..." />
                                 </div>
-                                <div className="grid lg:grid-cols-[1fr_400px] gap-8">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-fit">
+                                <div className="grid lg:grid-cols-[1fr_420px] gap-10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                         {items.map(item => (
-                                            <div key={item.id} className="glass p-6 cursor-pointer hover:border-indigo-500 transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
+                                            <div key={item.id} className="glass p-6 cursor-pointer group hover:scale-[1.02] transition-all" onClick={() => item.unit_type !== 'kg' && addToCart(item, 1, 'قطعة')}>
                                                 <div className="flex justify-between items-start">
                                                     <span className="text-[9px] font-black px-2 py-1 rounded bg-white/10 opacity-60 uppercase">{item.category}</span>
                                                     <div className="font-black text-lg" style={{color: 'var(--accent)'}}>{item.price.toLocaleString()}</div>
@@ -192,75 +210,68 @@
                                                 {item.unit_type === 'kg' && (
                                                     <div className="grid grid-cols-4 gap-1 mt-4">
                                                         {[1, 0.5, 0.25].map(w => (
-                                                            <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' '+unitLabel)}} className="bg-white/5 hover:bg-white/20 py-2 rounded-lg text-[10px] font-bold">{w}</button>
+                                                            <button key={w} onClick={(e)=>{e.stopPropagation(); addToCart(item, w, w+' '+unitLabel)}} className="bg-white/5 hover:bg-white/20 py-2 rounded-lg text-[10px] font-bold border border-white/5">{w}</button>
                                                         ))}
-                                                        <button onClick={(e)=>{e.stopPropagation(); const p=prompt('المبلغ:'); if(p) addToCart(item, p, p+' د.ع', true)}} className="bg-indigo-600 p-2 rounded-lg text-[10px] font-black">💰</button>
+                                                        <button onClick={(e)=>{e.stopPropagation(); setModal({type:'custom_amount', data:item})}} className="bg-indigo-600/30 py-2 rounded-lg text-[10px] font-black">💰</button>
                                                     </div>
                                                 )}
                                             </div>
                                         ))}
                                     </div>
-                                    <div className="glass h-[75vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/50">
-                                        <div className="p-4 bg-white/5 font-black text-center text-xs opacity-40">الفاتورة</div>
+
+                                    <div className="glass h-[78vh] flex flex-col sticky top-28 overflow-hidden bg-slate-900/40 shadow-2xl">
+                                        <div className="p-4 bg-white/5 font-black text-center text-xs opacity-40 uppercase">Invoice Items</div>
                                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                             {cart.map((c, i) => (
-                                                <div key={i} className="flex justify-between items-center border-b border-white/5 pb-2">
-                                                    <div><p className="font-black text-sm">{c.name}</p><small className="opacity-40">{c.cart_label}</small></div>
+                                                <div key={i} className="flex justify-between items-center border-b border-white/5 pb-3 animate-in slide-in-from-right duration-300">
+                                                    <div><p className="font-black text-sm">{c.name}</p><small className="opacity-30 uppercase font-bold text-[9px]">{c.cart_label}</small></div>
                                                     <div className="flex items-center gap-3"><span className="font-black">{c.price.toLocaleString()}</span><button onClick={()=>setCart(cart.filter((_,idx)=>idx!==i))} className="text-rose-500">✕</button></div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="p-6 bg-black/20 border-t border-white/5">
-                                            <div className="flex justify-between font-black text-2xl mb-4"><span>المجموع</span><span style={{color: 'var(--accent)'}}>{cart.reduce((a,b)=>a+b.price, 0).toLocaleString()}</span></div>
-                                            <button onClick={checkout} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg">تأكيد وطباعة ✅</button>
+                                        <div className="p-8 bg-black/30 border-t border-white/5">
+                                            <div className="flex justify-between font-black text-2xl mb-6">
+                                                <span className="opacity-30 text-xs">Total</span>
+                                                <span className="number-glow text-3xl" style={{color: 'var(--accent)'}}><AnimatedCounter value={cart.reduce((a,b)=>a+b.price, 0)} /></span>
+                                            </div>
+                                            <button onClick={checkout} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-all">تأكيد وطباعة ✅</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* 2. إدارة المخزن والمنيو المحاسبية */}
                         {view === 'inventory' && (
-                            <div className="glass p-8 animate-in fade-in duration-500">
-                                <h2 className="text-2xl font-black mb-8 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المواد والحسابات المالية</h2>
-                                
-                                {/* فورم الإضافة الاحترافي */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-12 bg-white/5 p-6 rounded-3xl border border-white/10">
-                                    <input placeholder="باركود (سكنر)" value={newItem.barcode} onChange={e=>{
+                            <div className="glass p-10 animate-in fade-in zoom-in duration-500">
+                                <h2 className="text-3xl font-black mb-10 italic uppercase" style={{color: 'var(--accent)'}}>إدارة المخزن</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-14 bg-white/5 p-8 rounded-[2.5rem] border border-white/10 shadow-2xl">
+                                    <input ref={invBarcodeRef} placeholder="باركود" value={newItem.barcode} onChange={e => {
                                         const code = e.target.value.trim();
-                                        const exist = items.find(i=>i.barcode === code);
-                                        if(exist) setNewItem({...newItem, id:exist.id, name:exist.name, price:exist.price, cost:exist.cost_price, category:exist.category, unit:exist.unit_type, barcode:code});
-                                        else setNewItem({...newItem, barcode:code, id:null});
+                                        const exist = items.find(i => i.barcode === code);
+                                        if(exist) setNewItem({...newItem, id:exist.id, name:exist.name, price:exist.price, cost:exist.cost_price, unit:exist.unit_type, barcode:code});
+                                        else setNewItem({...newItem, barcode: code, id:null});
                                     }} className="!bg-slate-800 !text-white" />
-                                    <input placeholder="اسم المادة" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
-                                    <input type="number" placeholder="سعر البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
-                                    <input type="number" placeholder="سعر التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
-                                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">بالقطعة</option><option value="kg">بالـ {unitLabel}</option></select>
-                                    <div className="flex gap-2 lg:col-span-2">
-                                        <input type="number" placeholder="الكمية الابتدائية" value={newItem.initial_stock} onChange={e=>setNewItem({...newItem, initial_stock:e.target.value})} />
-                                        <select value={newItem.initial_pay} onChange={e=>setNewItem({...newItem, initial_pay:e.target.value})}>
-                                            <option value="credit">آجل (دين)</option>
-                                            <option value="paid">واصل (كاش)</option>
-                                        </select>
-                                    </div>
-                                    <button onClick={saveNewProduct} className="bg-indigo-600 rounded-xl font-black">{newItem.id ? 'تحديث المادة' : 'حفظ مادة جديدة'}</button>
+                                    <input placeholder="الاسم" value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} />
+                                    <input type="number" placeholder="البيع" value={newItem.price} onChange={e=>setNewItem({...newItem, price:e.target.value})} />
+                                    <input type="number" placeholder="التكلفة" value={newItem.cost} onChange={e=>setNewItem({...newItem, cost:e.target.value})} />
+                                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem, unit:e.target.value})}><option value="piece">قطعة</option><option value="kg">بالـ {unitLabel}</option></select>
+                                    <button onClick={async ()=>{
+                                        const payload = {name:newItem.name, price:parseFloat(newItem.price), cost_price:parseFloat(newItem.cost||0), unit_type:newItem.unit, barcode:newItem.barcode, tenant_id:tenant.id};
+                                        if(newItem.id) await client.from('products').update(payload).eq('id', newItem.id);
+                                        else await client.from('products').insert([payload]);
+                                        setNewItem({id:null, name:'', price:'', category:'عام', unit:'piece', barcode:'', cost:''}); loadData();
+                                    }} className="lg:col-span-5 py-4 bg-indigo-600 rounded-2xl font-black text-lg">حفظ المادة ✨</button>
                                 </div>
-
-                                {/* قائمة المواد مع أزرار توريد واضحة */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {items.map(i => (
-                                        <div key={i.id} className="glass p-5 flex flex-col gap-4 border-white/5">
-                                            <div className="flex justify-between items-center">
-                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-40">Cost: {i.cost_price} | Price: {i.price}</p></div>
-                                                <div className="text-left"><span className="text-xs font-black px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-500">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unitLabel:'ق'}</span></div>
+                                        <div key={i.id} className="glass p-6 flex flex-col gap-5 border-white/5">
+                                            <div className="flex justify-between items-start">
+                                                <div><b className="text-xl">{i.name}</b><p className="text-[10px] opacity-30 mt-1">BC: {i.barcode || 'N/A'}</p></div>
+                                                <span className="text-xs font-black px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400">{i.stock_quantity.toFixed(2)} {i.unit_type==='kg'?unitLabel:'ق'}</span>
                                             </div>
-                                            <div className="flex gap-3 items-center bg-white/5 p-3 rounded-2xl">
-                                                <input type="number" placeholder="الكمية" className="!p-2 !text-xs !bg-slate-900 !text-white !w-24 rounded-lg" id={`inv-q-${i.id}`} />
-                                                <div className="flex gap-2 flex-1">
-                                                    <button onClick={()=>handleRestock(i, true)} className="btn-cash flex-1">توريد كاش 💸</button>
-                                                    <button onClick={()=>handleRestock(i, false)} className="btn-credit flex-1">توريد آجل ⏳</button>
-                                                </div>
-                                                <button onClick={async()=> {if(confirm('حذف؟')){await client.from('products').delete().eq('id',i.id); loadData();}}} className="text-rose-500 px-3">✕</button>
+                                            <div className="flex gap-2">
+                                                <button onClick={()=>setModal({type:'restock', data:i})} className="flex-1 py-3 bg-white/5 text-indigo-400 border border-indigo-500/20 rounded-xl font-black text-xs hover:bg-indigo-600 hover:text-white transition-all">توريد بضاعة (+)</button>
+                                                <button onClick={async()=>{ if(confirm('حذف؟')) {await client.from('products').delete().eq('id',i.id); loadData();} }} className="px-4 py-3 bg-rose-500/5 text-rose-500 rounded-xl font-black">✕</button>
                                             </div>
                                         </div>
                                     ))}
@@ -269,18 +280,18 @@
                         )}
 
                         {view === 'reports' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                                <div className="glass p-12 border-indigo-500/10">
-                                    <p className="text-xs font-black opacity-30 uppercase mb-4">مبيعات اليوم</p>
-                                    <h2 className="text-6xl font-black text-indigo-400">{stats.sales.toLocaleString()}</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center animate-in slide-in-from-bottom-10 duration-700">
+                                <div className="glass p-14 border-indigo-500/10">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">مبيعات اليوم</p>
+                                    <h2 className="text-6xl font-black number-glow" style={{color: 'var(--accent)'}}><AnimatedCounter value={stats.sales} /></h2>
                                 </div>
-                                <div className="glass p-12 border-rose-500/10">
-                                    <p className="text-xs font-black opacity-30 uppercase mb-4">المسحوبات (تشمل المشتريات الواصلة)</p>
-                                    <h2 className="text-6xl font-black text-rose-500">{stats.expenses.toLocaleString()}</h2>
+                                <div className="glass p-14 border-rose-500/10">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">المسحوبات</p>
+                                    <h2 className="text-6xl font-black text-rose-500"><AnimatedCounter value={stats.expenses} /></h2>
                                 </div>
-                                <div className="glass p-12">
-                                    <p className="text-xs font-black opacity-30 uppercase mb-4">صافي الصندوق</p>
-                                    <h2 className="text-6xl font-black text-emerald-500">{(stats.sales - stats.expenses).toLocaleString()}</h2>
+                                <div className="glass p-14 border-emerald-500/10">
+                                    <p className="text-xs font-black opacity-30 uppercase mb-4 tracking-widest">الصافي الفعلي</p>
+                                    <h2 className="text-6xl font-black text-emerald-500"><AnimatedCounter value={stats.sales - stats.expenses} /></h2>
                                 </div>
                             </div>
                         )}
